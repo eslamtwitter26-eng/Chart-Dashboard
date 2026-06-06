@@ -423,6 +423,57 @@ function SaveDialog({ defaultName, onSave, onClose }: { defaultName: string; onS
 
 const COUNT_OPTS = Array.from({ length: 12 }, (_, i) => ({ label: `${i+1} chart${i > 0 ? "s" : ""}`, value: i+1 }));
 
+// ─── Fullscreen hook ──────────────────────────────────────────────────────────
+
+function useFullscreen() {
+  const [fsIdx, setFsIdx] = useState<number | null>(null);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setFsIdx(null); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+  return { fsIdx, setFsIdx };
+}
+
+// ─── Fullscreen overlay ───────────────────────────────────────────────────────
+
+function FullscreenOverlay({
+  symbol, interval, label, onExit,
+}: { symbol: string; interval: string; label: string; onExit: () => void }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 500,
+      background: "hsl(var(--bg))",
+      display: "flex", flexDirection: "column",
+    }}>
+      {/* mini bar */}
+      <div style={{
+        height: 32, minHeight: 32,
+        display: "flex", alignItems: "center",
+        padding: "0 12px", gap: 10,
+        background: "hsl(var(--bg2))",
+        borderBottom: "1px solid hsl(var(--border))",
+        flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--text))" }}>{label}</span>
+        <span style={{ fontSize: 10, color: "hsl(var(--muted))", flex: 1 }}>Double-click or press ESC to exit</span>
+        <button
+          onClick={onExit}
+          style={{
+            padding: "2px 12px", borderRadius: 4,
+            border: "1px solid hsl(var(--border2))",
+            background: "hsl(var(--bg3))",
+            color: "hsl(var(--text2))", fontSize: 11, fontWeight: 700,
+          }}
+        >✕ Exit</button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }} onDoubleClick={onExit}>
+        <TvChart symbol={symbol} interval={interval} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Standard mode ────────────────────────────────────────────────────────────
 
 function StandardMode({
@@ -433,10 +484,11 @@ function StandardMode({
   onOpenTemplates: () => void;
 }) {
   const saved = load(KEY_STD, { symbols: ["TVC:GOLD","FOREXCOM:SPXUSD","FOREXCOM:NSXUSD","FX:EURUSD"], tfInterval: "D", count: 4 });
-  const [symbols, setSymbols]  = useState<string[]>(saved.symbols);
-  const [tf, setTf]            = useState<Timeframe>(TIMEFRAMES.find(t => t.interval === saved.tfInterval) ?? TIMEFRAMES[2]);
-  const [countOpt, setCount]   = useState(COUNT_OPTS.find(o => o.value === saved.count) ?? COUNT_OPTS[3]);
+  const [symbols, setSymbols]   = useState<string[]>(saved.symbols);
+  const [tf, setTf]             = useState<Timeframe>(TIMEFRAMES.find(t => t.interval === saved.tfInterval) ?? TIMEFRAMES[2]);
+  const [countOpt, setCount]    = useState(COUNT_OPTS.find(o => o.value === saved.count) ?? COUNT_OPTS[3]);
   const [showSave, setShowSave] = useState(false);
+  const { fsIdx, setFsIdx }     = useFullscreen();
 
   useEffect(() => { persist(KEY_STD, { symbols, tfInterval: tf.interval, count: countOpt.value }); }, [symbols, tf, countOpt]);
 
@@ -459,11 +511,11 @@ function StandardMode({
         <SimpleSelect label="Timeframe" options={TIMEFRAMES} value={tf} onChange={setTf} displayFn={v => v.short} />
         <SimpleSelect label="Layout" options={COUNT_OPTS} value={countOpt} onChange={setCount} displayFn={v => v.label} />
         <div className="toolbar-sep" />
-        <button className="toolbar-icon-btn" onClick={() => setShowSave(true)} title="Save template">💾 Save</button>
-        <button className="toolbar-icon-btn has-badge" onClick={onOpenTemplates} title="My templates">
+        <button className="toolbar-icon-btn" onClick={() => setShowSave(true)}>💾 Save</button>
+        <button className="toolbar-icon-btn" onClick={onOpenTemplates}>
           📁 Templates {templates.length > 0 && <span className="badge">{templates.length}</span>}
         </button>
-        <span className="layout-info">{slots.length}/{symbols.length} · {cols}×{rows}</span>
+        <span className="layout-info">{slots.length}/{symbols.length} · {cols}×{rows} · double-click to fullscreen</span>
       </div>
 
       {slots.length === 0 ? (
@@ -474,10 +526,23 @@ function StandardMode({
         </div>
       ) : (
         <div className="chart-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)`, gridTemplateRows: `repeat(${rows},1fr)` }}>
-          {slots.map(a => (
-            <TvChart key={`${a.symbol}-${tf.interval}`} symbol={a.symbol} interval={tf.interval} />
+          {slots.map((a, i) => (
+            <div key={`${a.symbol}-${tf.interval}`} style={{ minHeight: 0, height: "100%", cursor: "crosshair" }}
+              onDoubleClick={() => setFsIdx(i)}>
+              <TvChart symbol={a.symbol} interval={tf.interval} />
+            </div>
           ))}
         </div>
+      )}
+
+      {/* Fullscreen overlay */}
+      {fsIdx !== null && slots[fsIdx] && (
+        <FullscreenOverlay
+          symbol={slots[fsIdx].symbol}
+          interval={tf.interval}
+          label={`${slots[fsIdx].label} · ${tf.short}`}
+          onExit={() => setFsIdx(null)}
+        />
       )}
 
       {showSave && (
@@ -512,6 +577,7 @@ function CustomMode({
   const [slots, setSlots]       = useState<CustomSlot[]>(savedCustom.slots.length ? savedCustom.slots : []);
   const [showSave, setShowSave] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  const { fsIdx, setFsIdx }     = useFullscreen();
   const [bulkSym, setBulkSym]   = useState("");
   const [bulkTFs, setBulkTFs]   = useState<string[]>([]);
   const bulkRef = useRef<HTMLDivElement>(null);
@@ -603,7 +669,7 @@ function CustomMode({
         <button className="toolbar-icon-btn has-badge" onClick={onOpenTemplates}>
           📁 Templates {templates.length > 0 && <span className="badge">{templates.length}</span>}
         </button>
-        <span className="layout-info">{visibleSlots.length} chart{visibleSlots.length !== 1 ? "s" : ""} · {cols}×{rows}</span>
+        <span className="layout-info">{visibleSlots.length} chart{visibleSlots.length !== 1 ? "s" : ""} · {cols}×{rows} · double-click to fullscreen</span>
       </div>
 
       {slots.length === 0 ? (
@@ -615,12 +681,12 @@ function CustomMode({
       ) : (
         <div className="chart-grid"
           style={{ gridTemplateColumns: `repeat(${cols},1fr)`, gridTemplateRows: `repeat(${rows},1fr)` }}>
-          {visibleSlots.map(slot => {
+          {visibleSlots.map((slot, i) => {
             const assetLabel = ASSETS.find(a => a.symbol === slot.symbol)?.label ?? slot.symbol;
-            const tfLabel    = TIMEFRAMES.find(t => t.interval === slot.interval)?.short ?? slot.interval;
+            const tfShort    = TIMEFRAMES.find(t => t.interval === slot.interval)?.short ?? slot.interval;
             return (
               <div key={slot.id} style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "hsl(var(--bg))" }}>
-                {/* ── Chart header (always visible, NOT overlaid on iframe) ── */}
+                {/* ── Chart header ── */}
                 <div className="chart-header">
                   <InlineSelect
                     value={slot.symbol}
@@ -635,10 +701,18 @@ function CustomMode({
                     onChange={v => updateSlot(slot.id, { interval: v })}
                   />
                   <div style={{ flex: 1 }} />
+                  {/* Fullscreen button */}
+                  <button
+                    className="remove-slot-btn"
+                    onClick={() => setFsIdx(i)}
+                    title="Fullscreen (or double-click chart)"
+                    style={{ color: "hsl(var(--muted))", marginRight: 2 }}
+                  >⛶</button>
                   <button className="remove-slot-btn" onClick={() => removeSlot(slot.id)} title="Remove">✕</button>
                 </div>
                 {/* ── Iframe ── */}
-                <div style={{ flex: 1, minHeight: 0 }}>
+                <div style={{ flex: 1, minHeight: 0, cursor: "crosshair" }}
+                  onDoubleClick={() => setFsIdx(i)}>
                   <TvChart symbol={slot.symbol} interval={slot.interval} />
                 </div>
               </div>
@@ -646,6 +720,21 @@ function CustomMode({
           })}
         </div>
       )}
+
+      {/* Fullscreen overlay */}
+      {fsIdx !== null && visibleSlots[fsIdx] && (() => {
+        const s = visibleSlots[fsIdx];
+        const assetLabel = ASSETS.find(a => a.symbol === s.symbol)?.label ?? s.symbol;
+        const tfShort    = TIMEFRAMES.find(t => t.interval === s.interval)?.short ?? s.interval;
+        return (
+          <FullscreenOverlay
+            symbol={s.symbol}
+            interval={s.interval}
+            label={`${assetLabel} · ${tfShort}`}
+            onExit={() => setFsIdx(null)}
+          />
+        );
+      })()}
 
       {showSave && (
         <SaveDialog
@@ -686,8 +775,21 @@ export default function App() {
   }, []);
 
   const loadTemplate = useCallback((t: SavedTemplate) => {
-    setLoadedTpl(t);
-    switchMode(t.mode);
+    // Write template data into localStorage BEFORE remounting so the
+    // child component's useState(() => load(...)) picks up fresh values.
+    if (t.mode === "standard") {
+      persist(KEY_STD, {
+        symbols:    t.stdSymbols  ?? ["TVC:GOLD"],
+        tfInterval: t.stdInterval ?? "D",
+        count:      t.stdCount    ?? 4,
+      });
+    } else {
+      persist(KEY_CUSTOM, { slots: t.customSlots ?? [] });
+    }
+    persist(KEY_MODE, t.mode);
+    setMode(t.mode);
+    // Change key to force full remount with fresh localStorage values
+    setLoadedTpl({ ...t, createdAt: Date.now() });
     setShowTpl(false);
   }, []);
 
