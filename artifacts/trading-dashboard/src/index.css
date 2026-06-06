@@ -1,21 +1,19 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
   --bg:        222 47% 9%;
   --bg2:       222 47% 11%;
-  --bg3:       222 47% 13%;
+  --bg3:       222 47% 14%;
   --border:    217 33% 18%;
   --border2:   217 33% 22%;
   --text:      213 31% 91%;
   --text2:     215 20% 65%;
-  --muted:     215 20% 40%;
+  --muted:     215 20% 38%;
   --primary:   210 100% 56%;
-  --primary-d: 210 100% 48%;
+  --primary-d: 210 100% 46%;
   --green:     142 71% 45%;
-  --radius:    6px;
+  --red:       0 65% 55%;
   --font: 'Inter', system-ui, sans-serif;
 }
 
@@ -35,6 +33,7 @@
     overflow: hidden;
   }
   button { cursor: pointer; font-family: inherit; }
+  select { font-family: inherit; }
 }
 
 /* ── Scrollbar ── */
@@ -42,34 +41,31 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border2)); border-radius: 2px; }
 
-/* ── Mode tab strip ── */
+/* ── Mode strip ── */
 .mode-strip {
   display: flex;
   align-items: center;
-  gap: 0;
-  height: 34px;
-  min-height: 34px;
+  height: 32px;
+  min-height: 32px;
   background: hsl(var(--bg));
-  border-bottom: 2px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
   padding: 0 12px;
   flex-shrink: 0;
+  gap: 2px;
 }
 
 .mode-tab {
-  padding: 6px 16px;
+  padding: 5px 16px;
   border: none;
   background: transparent;
   color: hsl(var(--muted));
   font-size: 12px;
   font-weight: 600;
   border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  margin-bottom: -1px;
   transition: all 0.12s;
-  letter-spacing: 0.02em;
 }
-
 .mode-tab:hover { color: hsl(var(--text2)); }
-
 .mode-tab.active {
   color: hsl(var(--primary));
   border-bottom-color: hsl(var(--primary));
@@ -79,12 +75,12 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 48px;
-  min-height: 48px;
+  gap: 5px;
+  height: 46px;
+  min-height: 46px;
   background: hsl(var(--bg2));
   border-bottom: 1px solid hsl(var(--border));
-  padding: 0 12px;
+  padding: 0 10px;
   flex-shrink: 0;
   position: relative;
   z-index: 100;
@@ -92,13 +88,21 @@
 }
 
 .logo {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   color: hsl(var(--primary));
-  letter-spacing: 0.1em;
-  padding-right: 12px;
+  letter-spacing: 0.12em;
+  padding-right: 10px;
   border-right: 1px solid hsl(var(--border2));
   margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: hsl(var(--border2));
+  margin: 0 3px;
   flex-shrink: 0;
 }
 
@@ -106,22 +110,20 @@
 .dropdown-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: var(--radius);
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 5px;
   border: 1px solid hsl(var(--border2));
   background: hsl(var(--bg3));
   color: hsl(var(--text));
   font-size: 12px;
-  font-family: inherit;
   white-space: nowrap;
-  transition: all 0.12s;
-  min-width: 110px;
+  transition: all 0.1s;
+  min-width: 100px;
 }
-
 .dropdown-btn:hover {
   border-color: hsl(var(--primary) / 0.4);
-  background: hsl(222 47% 16%);
+  background: hsl(222 47% 17%);
 }
 
 .dropdown-label {
@@ -132,10 +134,8 @@
   letter-spacing: 0.07em;
   flex-shrink: 0;
 }
-
 .dropdown-value {
   font-weight: 600;
-  color: hsl(var(--text));
   flex: 1;
   text-align: left;
   overflow: hidden;
@@ -143,7 +143,6 @@
   white-space: nowrap;
   max-width: 140px;
 }
-
 .dropdown-arrow {
   font-size: 7px;
   color: hsl(var(--muted));
@@ -155,15 +154,14 @@
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  min-width: 180px;
+  min-width: 165px;
   background: hsl(var(--bg2));
   border: 1px solid hsl(var(--border2));
   border-radius: 8px;
-  box-shadow: 0 16px 48px hsl(222 47% 4% / 0.85);
+  box-shadow: 0 16px 48px hsl(222 47% 3% / 0.9);
   z-index: 9999;
   overflow: hidden;
 }
-
 .dropdown-option {
   display: block;
   width: 100%;
@@ -174,14 +172,9 @@
   color: hsl(var(--text2));
   background: transparent;
   border: none;
-  transition: all 0.1s;
+  transition: all 0.08s;
 }
-
-.dropdown-option:hover {
-  background: hsl(var(--border));
-  color: hsl(var(--text));
-}
-
+.dropdown-option:hover { background: hsl(var(--border)); color: hsl(var(--text)); }
 .dropdown-option.active {
   background: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
@@ -204,27 +197,26 @@
 .search-input::placeholder { color: hsl(var(--muted)); }
 
 .asset-group-header {
-  padding: 8px 12px 4px;
+  padding: 8px 12px 3px;
   font-size: 9px;
   font-weight: 700;
   color: hsl(var(--muted));
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-
 .asset-option {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
+  padding: 6px 12px;
   cursor: pointer;
   font-size: 12px;
   font-weight: 500;
   color: hsl(var(--text2));
-  transition: background 0.1s;
+  transition: background 0.08s;
 }
 .asset-option:hover { background: hsl(var(--border)); color: hsl(var(--text)); }
-.asset-option input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; flex-shrink: 0; }
+.asset-option input[type="checkbox"] { width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; }
 
 /* ── Buttons ── */
 .mini-btn {
@@ -233,57 +225,74 @@
   border: 1px solid hsl(var(--border2));
   background: transparent;
   color: hsl(var(--muted));
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   transition: all 0.1s;
 }
 .mini-btn:hover { background: hsl(var(--border)); color: hsl(var(--text2)); }
 
-.save-btn {
-  padding: 5px 14px;
-  border-radius: var(--radius);
+.toolbar-icon-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 5px;
   border: 1px solid hsl(var(--border2));
   background: hsl(var(--bg3));
   color: hsl(var(--text2));
   font-size: 12px;
   font-weight: 600;
-  transition: all 0.15s;
+  transition: all 0.1s;
   white-space: nowrap;
   flex-shrink: 0;
+  position: relative;
 }
-.save-btn:hover { border-color: hsl(var(--primary) / 0.4); color: hsl(var(--text)); }
-.save-btn.saved { border-color: hsl(var(--green) / 0.5); background: hsl(var(--green) / 0.1); color: hsl(var(--green)); }
+.toolbar-icon-btn:hover { border-color: hsl(var(--primary) / 0.35); color: hsl(var(--text)); }
 
 .toolbar-action-btn {
-  padding: 5px 12px;
-  border-radius: var(--radius);
+  padding: 5px 11px;
+  border-radius: 5px;
   border: 1px solid hsl(var(--border2));
   background: hsl(var(--bg3));
   color: hsl(var(--text2));
   font-size: 12px;
   font-weight: 600;
-  transition: all 0.12s;
+  transition: all 0.1s;
   white-space: nowrap;
 }
-.toolbar-action-btn:hover { border-color: hsl(var(--primary) / 0.35); color: hsl(var(--text)); background: hsl(222 47% 16%); }
-.toolbar-action-btn.highlight { border-color: hsl(var(--primary) / 0.3); color: hsl(210 100% 70%); }
-.toolbar-action-btn.highlight:hover { background: hsl(var(--primary) / 0.1); }
+.toolbar-action-btn:hover { border-color: hsl(var(--primary) / 0.35); color: hsl(var(--text)); background: hsl(222 47% 17%); }
+.toolbar-action-btn.highlight { border-color: hsl(var(--primary) / 0.3); color: hsl(210 100% 68%); }
+.toolbar-action-btn.highlight:hover { background: hsl(var(--primary) / 0.08); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: hsl(var(--primary));
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
 
 .apply-bulk-btn {
   width: 100%;
   padding: 8px;
-  border-radius: var(--radius);
+  border-radius: 5px;
   border: none;
   background: hsl(var(--primary));
   color: white;
   font-size: 12px;
   font-weight: 700;
-  transition: background 0.12s;
+  transition: background 0.1s;
 }
 .apply-bulk-btn:hover:not(:disabled) { background: hsl(var(--primary-d)); }
-.apply-bulk-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.apply-bulk-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-/* ── Native select (for bulk pair picker) ── */
 .native-select {
   width: 100%;
   padding: 6px 8px;
@@ -298,12 +307,39 @@
 }
 .native-select:focus { border-color: hsl(var(--primary) / 0.5); }
 
+/* ── Templates panel buttons ── */
+.load-tpl-btn {
+  padding: 4px 14px;
+  border-radius: 5px;
+  border: 1px solid hsl(var(--primary) / 0.4);
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.1s;
+  flex-shrink: 0;
+}
+.load-tpl-btn:hover { background: hsl(var(--primary) / 0.2); }
+
+.del-tpl-btn {
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid hsl(var(--red) / 0.3);
+  background: transparent;
+  color: hsl(var(--red));
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.1s;
+  flex-shrink: 0;
+}
+.del-tpl-btn:hover { background: hsl(var(--red) / 0.12); }
+
 /* ── Layout info ── */
 .layout-info {
   font-size: 10px;
   color: hsl(var(--muted));
   margin-left: auto;
-  padding-left: 8px;
+  padding-left: 6px;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -313,76 +349,74 @@
   display: grid;
   gap: 2px;
   flex: 1;
-  background: hsl(217 33% 12%);
+  background: hsl(217 33% 11%);
   min-height: 0;
   overflow: hidden;
 }
 
-/* ── Chart label ── */
-.chart-label {
-  position: absolute;
-  top: 5px;
-  left: 7px;
-  z-index: 10;
-  font-size: 11px;
-  font-weight: 700;
-  color: hsl(var(--text));
-  background: hsl(var(--bg) / 0.82);
-  padding: 2px 7px;
-  border-radius: 4px;
-  pointer-events: none;
-  backdrop-filter: blur(6px);
-  letter-spacing: 0.01em;
-}
-
-/* ── Per-slot controls (custom mode) ── */
-.slot-controls {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  z-index: 20;
+/* ── Chart header (custom mode) ── */
+.chart-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.15s;
+  gap: 0;
+  height: 30px;
+  min-height: 30px;
+  background: hsl(222 47% 10%);
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0 6px;
+  flex-shrink: 0;
+  overflow: visible;
+  position: relative;
+  z-index: 50;
 }
 
-/* Show controls on hover */
-div:hover > .slot-controls { opacity: 1; }
+.chart-header-sep {
+  width: 1px;
+  height: 14px;
+  background: hsl(var(--border2));
+  margin: 0 4px;
+  flex-shrink: 0;
+}
 
-.small-select-btn {
+/* ── Inline select (inside chart header) ── */
+.inline-select-btn {
   display: flex;
   align-items: center;
   gap: 3px;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 4px;
-  border: 1px solid hsl(var(--border2));
-  background: hsl(var(--bg) / 0.9);
+  border: none;
+  background: transparent;
   color: hsl(var(--text2));
   font-size: 11px;
   font-weight: 600;
-  white-space: nowrap;
-  backdrop-filter: blur(6px);
   transition: all 0.1s;
-  max-width: 140px;
+  white-space: nowrap;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.small-select-btn:hover { border-color: hsl(var(--primary) / 0.4); color: hsl(var(--text)); }
-
-.remove-slot-btn {
-  padding: 3px 7px;
-  border-radius: 4px;
-  border: 1px solid hsl(0 60% 40% / 0.4);
-  background: hsl(var(--bg) / 0.9);
-  color: hsl(0 60% 60%);
-  font-size: 10px;
-  font-weight: 700;
-  backdrop-filter: blur(6px);
-  transition: all 0.1s;
+.inline-select-btn:hover {
+  background: hsl(var(--border));
+  color: hsl(var(--text));
 }
-.remove-slot-btn:hover { background: hsl(0 60% 40% / 0.15); color: hsl(0 70% 70%); }
+
+/* ── Remove slot button ── */
+.remove-slot-btn {
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted));
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.1s;
+  flex-shrink: 0;
+}
+.remove-slot-btn:hover {
+  background: hsl(var(--red) / 0.15);
+  color: hsl(var(--red));
+}
 
 /* ── Empty state ── */
 .empty-state {
@@ -393,4 +427,6 @@ div:hover > .slot-controls { opacity: 1; }
   justify-content: center;
   gap: 10px;
   color: hsl(var(--muted));
+  text-align: center;
+  padding: 20px;
 }

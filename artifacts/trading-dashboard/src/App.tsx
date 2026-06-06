@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 // ─── Types & Data ─────────────────────────────────────────────────────────────
 
 type AssetGroup = "metals" | "indices" | "forex";
-type DashMode = "standard" | "custom";
+type DashMode   = "standard" | "custom";
 
 interface Asset { symbol: string; label: string; group: AssetGroup }
 
@@ -36,6 +36,8 @@ const ASSETS: Asset[] = [
   { symbol: "FX:GBPJPY",       label: "GBP/JPY",         group: "forex"   },
   { symbol: "FX:EURJPY",       label: "EUR/JPY",         group: "forex"   },
   { symbol: "FX:EURGBP",       label: "EUR/GBP",         group: "forex"   },
+  { symbol: "FX:USDTRY",       label: "USD/TRY",         group: "forex"   },
+  { symbol: "FX:USDZAR",       label: "USD/ZAR",         group: "forex"   },
 ];
 
 interface Timeframe { interval: string; label: string; short: string }
@@ -52,26 +54,48 @@ const TIMEFRAMES: Timeframe[] = [
   { interval: "1",   label: "1 Minute",   short: "1m"  },
 ];
 
+const ASSET_OPTS = ASSETS.map(a => ({ val: a.symbol, label: a.label, group: a.group }));
+const TF_OPTS    = TIMEFRAMES.map(t => ({ val: t.interval, label: `${t.short}` }));
+
 // ─── Custom slot ──────────────────────────────────────────────────────────────
 
-interface CustomSlot {
+interface CustomSlot { id: string; symbol: string; interval: string }
+
+// ─── Saved template ───────────────────────────────────────────────────────────
+
+interface SavedTemplate {
   id: string;
-  symbol: string;
-  interval: string;
+  name: string;
+  mode: DashMode;
+  createdAt: number;
+  // Standard mode data
+  stdSymbols?: string[];
+  stdInterval?: string;
+  stdCount?: number;
+  // Custom mode data
+  customSlots?: CustomSlot[];
 }
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
-const KEY_STD    = "tdash-standard-v2";
-const KEY_CUSTOM = "tdash-custom-v2";
-const KEY_MODE   = "tdash-mode-v2";
+const KEY_STD       = "tdash-std-v3";
+const KEY_CUSTOM    = "tdash-custom-v3";
+const KEY_MODE      = "tdash-mode-v3";
+const KEY_TEMPLATES = "tdash-templates-v3";
 
 function load<T>(key: string, fallback: T): T {
   try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; }
   catch { return fallback; }
 }
-function save(key: string, val: unknown) {
+function persist(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
+function loadTemplates(): SavedTemplate[] {
+  return load<SavedTemplate[]>(KEY_TEMPLATES, []);
+}
+function saveTemplates(tpls: SavedTemplate[]) {
+  persist(KEY_TEMPLATES, tpls);
 }
 
 // ─── Grid ─────────────────────────────────────────────────────────────────────
@@ -87,17 +111,19 @@ function getGrid(n: number) {
   return { cols: 4, rows: 3 };
 }
 
-// ─── TradingView clean chart ──────────────────────────────────────────────────
+// ─── Uid ──────────────────────────────────────────────────────────────────────
 
-function TvChart({ symbol, interval, label }: { symbol: string; interval: string; label: string }) {
+let _id = Date.now();
+const uid = () => `s${++_id}`;
+
+// ─── TradingView chart ────────────────────────────────────────────────────────
+
+function TvChart({ symbol, interval }: { symbol: string; interval: string }) {
   const src = useMemo(() => {
     const p = new URLSearchParams({
-      symbol,
-      interval,
-      theme: "dark",
-      style: "1",
-      locale: "en",
-      hide_top_toolbar: "1",   // hides the bar inside the chart
+      symbol, interval,
+      theme: "dark", style: "1", locale: "en",
+      hide_top_toolbar: "1",
       hide_legend: "1",
       hide_side_toolbar: "1",
       allow_symbol_change: "0",
@@ -106,35 +132,34 @@ function TvChart({ symbol, interval, label }: { symbol: string; interval: string
       withdateranges: "0",
       hidevolume: "1",
       hide_volume: "true",
-      no_referral_id: "1",
       calendar: "0",
       news: "[]",
+      no_referral_id: "1",
     });
     return `https://www.tradingview.com/widgetembed/?${p.toString()}`;
   }, [symbol, interval]);
 
   return (
-    <div style={{ position: "relative", height: "100%", background: "hsl(222 47% 9%)", overflow: "hidden" }}>
-      <div className="chart-label">{label}</div>
-      <iframe
-        src={src}
-        title={label}
-        allowFullScreen
-        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-        loading="lazy"
-        style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-      />
-    </div>
+    <iframe
+      src={src}
+      title={`${symbol}-${interval}`}
+      allowFullScreen
+      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+      loading="lazy"
+      style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+    />
   );
 }
 
-// ─── Reusable dropdown hook ───────────────────────────────────────────────────
+// ─── Dropdown hook ────────────────────────────────────────────────────────────
 
 function useDropdown() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
@@ -151,7 +176,6 @@ function AssetDropdown({ selected, onChange }: { selected: string[]; onChange: (
     a.label.toLowerCase().includes(search.toLowerCase()) ||
     a.symbol.toLowerCase().includes(search.toLowerCase())
   );
-
   const toggle = (sym: string) =>
     onChange(selected.includes(sym) ? selected.filter(s => s !== sym) : [...selected, sym]);
 
@@ -163,16 +187,16 @@ function AssetDropdown({ selected, onChange }: { selected: string[]; onChange: (
     <div ref={ref} style={{ position: "relative" }}>
       <button className="dropdown-btn" onClick={() => setOpen(o => !o)}>
         <span className="dropdown-label">Assets</span>
-        <span className="dropdown-value" style={{ maxWidth: 150 }}>{label}</span>
+        <span className="dropdown-value" style={{ maxWidth: 140 }}>{label}</span>
         <span className="dropdown-arrow">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="dropdown-menu" style={{ width: 270, maxHeight: 420 }}>
+        <div className="dropdown-menu" style={{ width: 265, maxHeight: 420 }}>
           <div style={{ padding: "8px 10px 6px" }}>
             <input className="search-input" placeholder="Search…" value={search}
               onChange={e => setSearch(e.target.value)} autoFocus />
           </div>
-          <div style={{ display: "flex", gap: 6, padding: "2px 10px 8px", borderBottom: "1px solid hsl(217 33% 18%)" }}>
+          <div style={{ display: "flex", gap: 6, padding: "2px 10px 8px", borderBottom: "1px solid hsl(var(--border))" }}>
             <button className="mini-btn" onClick={() => onChange(ASSETS.map(a => a.symbol))}>All</button>
             <button className="mini-btn" onClick={() => onChange([])}>Clear</button>
           </div>
@@ -193,7 +217,7 @@ function AssetDropdown({ selected, onChange }: { selected: string[]; onChange: (
                 </div>
               );
             })}
-            {!filtered.length && <div style={{ padding: 14, fontSize: 12, color: "hsl(215 20% 45%)", textAlign: "center" }}>No results</div>}
+            {!filtered.length && <div style={{ padding: 14, fontSize: 12, color: "hsl(var(--muted))", textAlign: "center" }}>No results</div>}
           </div>
         </div>
       )}
@@ -201,7 +225,7 @@ function AssetDropdown({ selected, onChange }: { selected: string[]; onChange: (
   );
 }
 
-// ─── Simple select dropdown ───────────────────────────────────────────────────
+// ─── Simple select ────────────────────────────────────────────────────────────
 
 function SimpleSelect<T extends { label: string }>({
   label, options, value, onChange, displayFn,
@@ -218,7 +242,7 @@ function SimpleSelect<T extends { label: string }>({
         <span className="dropdown-arrow">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="dropdown-menu" style={{ minWidth: 170 }}>
+        <div className="dropdown-menu" style={{ minWidth: 165 }}>
           {options.map((o, i) => (
             <button key={i} className={`dropdown-option ${o === value ? "active" : ""}`}
               onClick={() => { onChange(o); setOpen(false); }}>
@@ -231,30 +255,166 @@ function SimpleSelect<T extends { label: string }>({
   );
 }
 
-// ─── Inline small dropdowns (used in custom slots) ────────────────────────────
+// ─── Small inline select (for chart headers) ──────────────────────────────────
 
-function SmallSelect({ value, options, onChange, placeholder }: {
-  value: string; options: { val: string; label: string }[];
-  onChange: (v: string) => void; placeholder?: string;
+function InlineSelect({ value, options, onChange, grouped }: {
+  value: string;
+  options: { val: string; label: string; group?: string }[];
+  onChange: (v: string) => void;
+  grouped?: boolean;
 }) {
   const { open, setOpen, ref } = useDropdown();
+  const [search, setSearch] = useState("");
+
   const current = options.find(o => o.val === value);
+
+  const filtered = options.filter(o =>
+    !search || o.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const groups = grouped
+    ? (["metals", "indices", "forex"] as AssetGroup[])
+    : null;
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button className="small-select-btn" onClick={() => setOpen(o => !o)}>
-        {current?.label ?? placeholder ?? "—"}
-        <span style={{ opacity: 0.5, marginLeft: 3, fontSize: 8 }}>{open ? "▲" : "▼"}</span>
+      <button className="inline-select-btn" onClick={() => { setOpen(o => !o); setSearch(""); }}>
+        {current?.label ?? "—"}
+        <span className="dropdown-arrow" style={{ marginLeft: 4 }}>{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="dropdown-menu" style={{ minWidth: 180 }}>
-          {options.map(o => (
-            <button key={o.val} className={`dropdown-option ${o.val === value ? "active" : ""}`}
-              onClick={() => { onChange(o.val); setOpen(false); }}>
-              {o.label}
-            </button>
-          ))}
+        <div className="dropdown-menu" style={{ minWidth: grouped ? 230 : 120, maxHeight: grouped ? 360 : 220, overflowY: "auto" }}>
+          {grouped && (
+            <div style={{ padding: "6px 8px 4px" }}>
+              <input className="search-input" style={{ fontSize: 11 }} placeholder="Search…" value={search}
+                onChange={e => setSearch(e.target.value)} autoFocus />
+            </div>
+          )}
+          {groups
+            ? groups.map(g => {
+                const list = filtered.filter(o => o.group === g);
+                if (!list.length) return null;
+                const gLabel = ASSET_GROUPS.find(x => x.key === g)?.label ?? g;
+                return (
+                  <div key={g}>
+                    <div className="asset-group-header">{gLabel}</div>
+                    {list.map(o => (
+                      <button key={o.val} className={`dropdown-option ${o.val === value ? "active" : ""}`}
+                        onClick={() => { onChange(o.val); setOpen(false); }}>
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })
+            : filtered.map(o => (
+                <button key={o.val} className={`dropdown-option ${o.val === value ? "active" : ""}`}
+                  onClick={() => { onChange(o.val); setOpen(false); }}>
+                  {o.label}
+                </button>
+              ))
+          }
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Templates panel ──────────────────────────────────────────────────────────
+
+interface TemplatesPanelProps {
+  templates: SavedTemplate[];
+  onLoad: (t: SavedTemplate) => void;
+  onDelete: (id: string) => void;
+  onClose: () => void;
+}
+
+function TemplatesPanel({ templates, onLoad, onDelete, onClose }: TemplatesPanelProps) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}
+      onClick={onClose}>
+      <div style={{
+        background: "hsl(var(--bg2))", border: "1px solid hsl(var(--border2))",
+        borderRadius: 10, width: 420, maxHeight: "70vh", display: "flex", flexDirection: "column",
+        boxShadow: "0 24px 60px hsl(222 47% 4% / 0.9)",
+      }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid hsl(var(--border))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--text))" }}>📁 Saved Templates</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "hsl(var(--muted))", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+        {/* List */}
+        <div style={{ overflowY: "auto", flex: 1, padding: "8px 0" }}>
+          {templates.length === 0 ? (
+            <div style={{ padding: "32px 20px", textAlign: "center", color: "hsl(var(--muted))", fontSize: 13 }}>
+              No saved templates yet.<br />
+              <span style={{ fontSize: 11, opacity: 0.7 }}>Use the Save button to save your current layout.</span>
+            </div>
+          ) : (
+            templates.map(t => (
+              <div key={t.id} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 16px", borderBottom: "1px solid hsl(var(--border) / 0.4)",
+                transition: "background 0.1s",
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--text))", marginBottom: 2 }}>{t.name}</div>
+                  <div style={{ fontSize: 11, color: "hsl(var(--muted))" }}>
+                    {t.mode === "standard"
+                      ? `Standard · ${t.stdSymbols?.length ?? 0} assets · ${TIMEFRAMES.find(x => x.interval === t.stdInterval)?.short ?? t.stdInterval}`
+                      : `Custom · ${t.customSlots?.length ?? 0} charts`}
+                    {" · "}{new Date(t.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <button className="load-tpl-btn" onClick={() => onLoad(t)}>Load</button>
+                <button className="del-tpl-btn" onClick={() => onDelete(t.id)} title="Delete">✕</button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Save dialog ──────────────────────────────────────────────────────────────
+
+function SaveDialog({ defaultName, onSave, onClose }: { defaultName: string; onSave: (name: string) => void; onClose: () => void }) {
+  const [name, setName] = useState(defaultName);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.select(); }, []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}
+      onClick={onClose}>
+      <div style={{
+        background: "hsl(var(--bg2))", border: "1px solid hsl(var(--border2))",
+        borderRadius: 10, width: 340, padding: "20px",
+        boxShadow: "0 24px 60px hsl(222 47% 4% / 0.9)",
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--text))", marginBottom: 14 }}>💾 Save Template</div>
+        <input
+          ref={inputRef}
+          className="search-input"
+          style={{ fontSize: 13, padding: "8px 12px", marginBottom: 14 }}
+          placeholder="Template name…"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && name.trim()) { onSave(name.trim()); } if (e.key === "Escape") onClose(); }}
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button className="mini-btn" style={{ padding: "6px 14px" }} onClick={onClose}>Cancel</button>
+          <button
+            style={{
+              padding: "6px 18px", borderRadius: 6, border: "none",
+              background: "hsl(var(--primary))", color: "white",
+              fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: name.trim() ? 1 : 0.4,
+            }}
+            disabled={!name.trim()}
+            onClick={() => onSave(name.trim())}
+          >Save</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -265,36 +425,43 @@ const COUNT_OPTS = Array.from({ length: 12 }, (_, i) => ({ label: `${i+1} chart$
 
 // ─── Standard mode ────────────────────────────────────────────────────────────
 
-function StandardMode() {
-  const savedStd = load(KEY_STD, { symbols: ["TVC:GOLD","FOREXCOM:SPXUSD","FOREXCOM:NSXUSD","FX:EURUSD"], tfInterval: "D", count: 4 });
+function StandardMode({
+  templates, onSaveTemplate, onOpenTemplates,
+}: {
+  templates: SavedTemplate[];
+  onSaveTemplate: (t: Omit<SavedTemplate, "id" | "createdAt">) => void;
+  onOpenTemplates: () => void;
+}) {
+  const saved = load(KEY_STD, { symbols: ["TVC:GOLD","FOREXCOM:SPXUSD","FOREXCOM:NSXUSD","FX:EURUSD"], tfInterval: "D", count: 4 });
+  const [symbols, setSymbols]  = useState<string[]>(saved.symbols);
+  const [tf, setTf]            = useState<Timeframe>(TIMEFRAMES.find(t => t.interval === saved.tfInterval) ?? TIMEFRAMES[2]);
+  const [countOpt, setCount]   = useState(COUNT_OPTS.find(o => o.value === saved.count) ?? COUNT_OPTS[3]);
+  const [showSave, setShowSave] = useState(false);
 
-  const [symbols, setSymbols] = useState<string[]>(savedStd.symbols);
-  const [tf, setTf]           = useState<Timeframe>(TIMEFRAMES.find(t => t.interval === savedStd.tfInterval) ?? TIMEFRAMES[2]);
-  const [countOpt, setCount]  = useState(COUNT_OPTS.find(o => o.value === savedStd.count) ?? COUNT_OPTS[3]);
-  const [flash, setFlash]     = useState(false);
-
-  const handleSave = () => {
-    save(KEY_STD, { symbols, tfInterval: tf.interval, count: countOpt.value });
-    setFlash(true); setTimeout(() => setFlash(false), 2000);
-  };
+  useEffect(() => { persist(KEY_STD, { symbols, tfInterval: tf.interval, count: countOpt.value }); }, [symbols, tf, countOpt]);
 
   const slots = useMemo(() =>
     symbols.map(s => ASSETS.find(a => a.symbol === s)).filter(Boolean).slice(0, countOpt.value) as Asset[],
-    [symbols, countOpt.value]
-  );
+    [symbols, countOpt.value]);
 
   const { cols, rows } = getGrid(Math.max(1, slots.length));
 
+  const handleSave = (name: string) => {
+    onSaveTemplate({ name, mode: "standard", stdSymbols: symbols, stdInterval: tf.interval, stdCount: countOpt.value });
+    setShowSave(false);
+  };
+
   return (
     <>
-      {/* Toolbar row */}
       <div className="toolbar">
         <div className="logo">CHARTS</div>
         <AssetDropdown selected={symbols} onChange={setSymbols} />
         <SimpleSelect label="Timeframe" options={TIMEFRAMES} value={tf} onChange={setTf} displayFn={v => v.short} />
         <SimpleSelect label="Layout" options={COUNT_OPTS} value={countOpt} onChange={setCount} displayFn={v => v.label} />
-        <button className={`save-btn ${flash ? "saved" : ""}`} onClick={handleSave}>
-          {flash ? "✓ Saved" : "💾 Save"}
+        <div className="toolbar-sep" />
+        <button className="toolbar-icon-btn" onClick={() => setShowSave(true)} title="Save template">💾 Save</button>
+        <button className="toolbar-icon-btn has-badge" onClick={onOpenTemplates} title="My templates">
+          📁 Templates {templates.length > 0 && <span className="badge">{templates.length}</span>}
         </button>
         <span className="layout-info">{slots.length}/{symbols.length} · {cols}×{rows}</span>
       </div>
@@ -303,15 +470,22 @@ function StandardMode() {
         <div className="empty-state">
           <div style={{ fontSize: 40 }}>📊</div>
           <div style={{ fontWeight: 700, fontSize: 15 }}>No assets selected</div>
-          <div style={{ fontSize: 12 }}>Open the Assets dropdown and pick what you want to chart</div>
+          <div style={{ fontSize: 12 }}>Open the Assets dropdown to add charts</div>
         </div>
       ) : (
         <div className="chart-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)`, gridTemplateRows: `repeat(${rows},1fr)` }}>
-          {slots.map(a => {
-            const tfShort = tf.short;
-            return <TvChart key={`${a.symbol}-${tf.interval}`} symbol={a.symbol} interval={tf.interval} label={`${a.label} · ${tfShort}`} />;
-          })}
+          {slots.map(a => (
+            <TvChart key={`${a.symbol}-${tf.interval}`} symbol={a.symbol} interval={tf.interval} />
+          ))}
         </div>
+      )}
+
+      {showSave && (
+        <SaveDialog
+          defaultName={`Standard Layout ${new Date().toLocaleDateString()}`}
+          onSave={handleSave}
+          onClose={() => setShowSave(false)}
+        />
       )}
     </>
   );
@@ -319,89 +493,77 @@ function StandardMode() {
 
 // ─── Custom mode ──────────────────────────────────────────────────────────────
 
-let _id = 0;
-const uid = () => `s${++_id}`;
-
-const ASSET_OPTS  = ASSETS.map(a => ({ val: a.symbol, label: a.label }));
-const TF_OPTS     = TIMEFRAMES.map(t => ({ val: t.interval, label: `${t.short} — ${t.label}` }));
-
-function CustomMode() {
+function CustomMode({
+  templates, onSaveTemplate, onOpenTemplates,
+}: {
+  templates: SavedTemplate[];
+  onSaveTemplate: (t: Omit<SavedTemplate, "id" | "createdAt">) => void;
+  onOpenTemplates: () => void;
+}) {
   const savedCustom = load<{ slots: CustomSlot[] }>(KEY_CUSTOM, {
     slots: [
-      { id: uid(), symbol: "TVC:GOLD",        interval: "D"  },
-      { id: uid(), symbol: "FX:EURUSD",       interval: "4H" },
-      { id: uid(), symbol: "FX:GBPUSD",       interval: "1H" },
-      { id: uid(), symbol: "FOREXCOM:SPXUSD", interval: "D"  },
+      { id: uid(), symbol: "TVC:GOLD",        interval: "D"   },
+      { id: uid(), symbol: "FX:EURUSD",       interval: "240" },
+      { id: uid(), symbol: "FX:GBPUSD",       interval: "60"  },
+      { id: uid(), symbol: "FOREXCOM:SPXUSD", interval: "D"   },
     ],
   });
 
-  const [slots, setSlots] = useState<CustomSlot[]>(savedCustom.slots.length ? savedCustom.slots : [{ id: uid(), symbol: "TVC:GOLD", interval: "D" }]);
-  const [flash, setFlash] = useState(false);
-
-  // Quick-add helper: add one pair × multiple TFs
+  const [slots, setSlots]       = useState<CustomSlot[]>(savedCustom.slots.length ? savedCustom.slots : []);
+  const [showSave, setShowSave] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [bulkSym, setBulkSym]   = useState("");
   const [bulkTFs, setBulkTFs]   = useState<string[]>([]);
-  const [bulkOpen, setBulkOpen] = useState(false);
   const bulkRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (bulkRef.current && !bulkRef.current.contains(e.target as Node)) setBulkOpen(false); };
+    const h = (e: MouseEvent) => { if (bulkRef.current && !bulkRef.current.contains(e.target as Node)) setShowBulk(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const addSlot = () =>
-    setSlots(p => [...p, { id: uid(), symbol: "TVC:GOLD", interval: "D" }]);
+  useEffect(() => { persist(KEY_CUSTOM, { slots }); }, [slots]);
 
+  const addSlot = () => setSlots(p => [...p, { id: uid(), symbol: "TVC:GOLD", interval: "D" }]);
   const removeSlot = (id: string) => setSlots(p => p.filter(s => s.id !== id));
-
   const updateSlot = (id: string, patch: Partial<CustomSlot>) =>
     setSlots(p => p.map(s => s.id === id ? { ...s, ...patch } : s));
 
-  const handleSave = () => {
-    save(KEY_CUSTOM, { slots });
-    setFlash(true); setTimeout(() => setFlash(false), 2000);
-  };
-
   const applyBulk = () => {
     if (!bulkSym || !bulkTFs.length) return;
-    const newSlots: CustomSlot[] = bulkTFs.map(iv => ({ id: uid(), symbol: bulkSym, interval: iv }));
-    setSlots(p => [...p, ...newSlots]);
-    setBulkOpen(false);
-    setBulkTFs([]);
-    setBulkSym("");
+    setSlots(p => [...p, ...bulkTFs.map(iv => ({ id: uid(), symbol: bulkSym, interval: iv }))]);
+    setShowBulk(false); setBulkTFs([]); setBulkSym("");
   };
 
-  const { cols, rows } = getGrid(Math.max(1, Math.min(slots.length, 12)));
+  const handleSave = (name: string) => {
+    onSaveTemplate({ name, mode: "custom", customSlots: slots });
+    setShowSave(false);
+  };
+
   const visibleSlots = slots.slice(0, 12);
+  const { cols, rows } = getGrid(Math.max(1, visibleSlots.length));
 
   return (
     <>
-      {/* Toolbar row */}
       <div className="toolbar">
         <div className="logo">CHARTS</div>
 
-        {/* Add single slot */}
+        {/* Add one slot */}
         <button className="toolbar-action-btn" onClick={addSlot}>+ Add Chart</button>
 
-        {/* Bulk: one pair × multiple TFs */}
+        {/* One pair × multiple TFs */}
         <div ref={bulkRef} style={{ position: "relative" }}>
-          <button className="toolbar-action-btn highlight" onClick={() => setBulkOpen(o => !o)}>
-            ⚡ One Pair, Multi-TF
+          <button className="toolbar-action-btn highlight" onClick={() => setShowBulk(o => !o)}>
+            ⚡ Multi-Timeframe
           </button>
-          {bulkOpen && (
-            <div className="dropdown-menu" style={{ width: 300, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "hsl(215 20% 45%)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          {showBulk && (
+            <div className="dropdown-menu" style={{ width: 290, padding: "14px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--muted))", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 One Pair × Multiple Timeframes
               </div>
-
-              {/* Pair picker */}
               <div>
-                <div style={{ fontSize: 10, color: "hsl(215 20% 45%)", marginBottom: 4 }}>Pair</div>
-                <select
-                  className="native-select"
-                  value={bulkSym}
-                  onChange={e => setBulkSym(e.target.value)}
-                >
+                <div style={{ fontSize: 10, color: "hsl(var(--muted))", marginBottom: 5 }}>Pair</div>
+                <select className="native-select" value={bulkSym} onChange={e => setBulkSym(e.target.value)}>
                   <option value="">— pick a pair —</option>
                   {ASSET_GROUPS.map(g => (
                     <optgroup key={g.key} label={g.label}>
@@ -412,43 +574,34 @@ function CustomMode() {
                   ))}
                 </select>
               </div>
-
-              {/* TF checkboxes */}
               <div>
-                <div style={{ fontSize: 10, color: "hsl(215 20% 45%)", marginBottom: 4 }}>Timeframes (pick multiple)</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 8px" }}>
+                <div style={{ fontSize: 10, color: "hsl(var(--muted))", marginBottom: 5 }}>Timeframes</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 10px" }}>
                   {TIMEFRAMES.map(tf => (
-                    <label key={tf.interval} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 12, color: "hsl(213 31% 80%)" }}>
-                      <input
-                        type="checkbox"
-                        checked={bulkTFs.includes(tf.interval)}
+                    <label key={tf.interval} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: 12, color: "hsl(var(--text2))" }}>
+                      <input type="checkbox" checked={bulkTFs.includes(tf.interval)}
                         onChange={() => setBulkTFs(p => p.includes(tf.interval) ? p.filter(x => x !== tf.interval) : [...p, tf.interval])}
-                        style={{ accentColor: "hsl(210 100% 56%)" }}
-                      />
+                        style={{ accentColor: "hsl(210 100% 56%)" }} />
                       {tf.short}
                     </label>
                   ))}
                 </div>
               </div>
-
-              <button
-                className="apply-bulk-btn"
-                disabled={!bulkSym || !bulkTFs.length}
-                onClick={applyBulk}
-              >
+              <button className="apply-bulk-btn" disabled={!bulkSym || !bulkTFs.length} onClick={applyBulk}>
                 Add {bulkTFs.length || 0} chart{bulkTFs.length !== 1 ? "s" : ""}
               </button>
             </div>
           )}
         </div>
 
-        {/* Clear all */}
         {slots.length > 0 && (
-          <button className="mini-btn" style={{ marginLeft: 2 }} onClick={() => setSlots([])}>Clear All</button>
+          <button className="mini-btn" style={{ fontSize: 11 }} onClick={() => setSlots([])}>Clear All</button>
         )}
 
-        <button className={`save-btn ${flash ? "saved" : ""}`} onClick={handleSave}>
-          {flash ? "✓ Saved" : "💾 Save"}
+        <div className="toolbar-sep" />
+        <button className="toolbar-icon-btn" onClick={() => setShowSave(true)}>💾 Save</button>
+        <button className="toolbar-icon-btn has-badge" onClick={onOpenTemplates}>
+          📁 Templates {templates.length > 0 && <span className="badge">{templates.length}</span>}
         </button>
         <span className="layout-info">{visibleSlots.length} chart{visibleSlots.length !== 1 ? "s" : ""} · {cols}×{rows}</span>
       </div>
@@ -457,37 +610,49 @@ function CustomMode() {
         <div className="empty-state">
           <div style={{ fontSize: 40 }}>⚙️</div>
           <div style={{ fontWeight: 700, fontSize: 15 }}>No charts yet</div>
-          <div style={{ fontSize: 12 }}>Click "Add Chart" or use "One Pair, Multi-TF" to get started</div>
+          <div style={{ fontSize: 12 }}>Click "+ Add Chart" to add a chart, or use "⚡ Multi-Timeframe" for one pair across multiple timeframes</div>
         </div>
       ) : (
-        <div className="chart-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)`, gridTemplateRows: `repeat(${rows},1fr)` }}>
+        <div className="chart-grid"
+          style={{ gridTemplateColumns: `repeat(${cols},1fr)`, gridTemplateRows: `repeat(${rows},1fr)` }}>
           {visibleSlots.map(slot => {
             const assetLabel = ASSETS.find(a => a.symbol === slot.symbol)?.label ?? slot.symbol;
-            const tfShort    = TIMEFRAMES.find(t => t.interval === slot.interval)?.short ?? slot.interval;
+            const tfLabel    = TIMEFRAMES.find(t => t.interval === slot.interval)?.short ?? slot.interval;
             return (
-              <div key={slot.id} style={{ position: "relative", height: "100%" }}>
-                <TvChart symbol={slot.symbol} interval={slot.interval} label={`${assetLabel} · ${tfShort}`} />
-
-                {/* Per-slot controls */}
-                <div className="slot-controls">
-                  <SmallSelect
+              <div key={slot.id} style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "hsl(var(--bg))" }}>
+                {/* ── Chart header (always visible, NOT overlaid on iframe) ── */}
+                <div className="chart-header">
+                  <InlineSelect
                     value={slot.symbol}
                     options={ASSET_OPTS}
                     onChange={v => updateSlot(slot.id, { symbol: v })}
-                    placeholder="Asset"
+                    grouped
                   />
-                  <SmallSelect
+                  <div className="chart-header-sep" />
+                  <InlineSelect
                     value={slot.interval}
                     options={TF_OPTS}
                     onChange={v => updateSlot(slot.id, { interval: v })}
-                    placeholder="TF"
                   />
+                  <div style={{ flex: 1 }} />
                   <button className="remove-slot-btn" onClick={() => removeSlot(slot.id)} title="Remove">✕</button>
+                </div>
+                {/* ── Iframe ── */}
+                <div style={{ flex: 1, minHeight: 0 }}>
+                  <TvChart symbol={slot.symbol} interval={slot.interval} />
                 </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {showSave && (
+        <SaveDialog
+          defaultName={`Custom Layout ${new Date().toLocaleDateString()}`}
+          onSave={handleSave}
+          onClose={() => setShowSave(false)}
+        />
       )}
     </>
   );
@@ -496,23 +661,57 @@ function CustomMode() {
 // ─── App shell ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [mode, setMode] = useState<DashMode>(() => load<DashMode>(KEY_MODE, "standard"));
+  const [mode, setMode]             = useState<DashMode>(() => load<DashMode>(KEY_MODE, "standard"));
+  const [templates, setTemplates]   = useState<SavedTemplate[]>(() => loadTemplates());
+  const [showTemplates, setShowTpl] = useState(false);
+  const [loadedTpl, setLoadedTpl]   = useState<SavedTemplate | null>(null);
 
-  const switchMode = (m: DashMode) => { setMode(m); save(KEY_MODE, m); };
+  const switchMode = (m: DashMode) => { setMode(m); persist(KEY_MODE, m); };
+
+  const saveTemplate = useCallback((t: Omit<SavedTemplate, "id" | "createdAt">) => {
+    const tpl: SavedTemplate = { ...t, id: uid(), createdAt: Date.now() };
+    setTemplates(prev => {
+      const next = [tpl, ...prev];
+      saveTemplates(next);
+      return next;
+    });
+  }, []);
+
+  const deleteTemplate = useCallback((id: string) => {
+    setTemplates(prev => {
+      const next = prev.filter(t => t.id !== id);
+      saveTemplates(next);
+      return next;
+    });
+  }, []);
+
+  const loadTemplate = useCallback((t: SavedTemplate) => {
+    setLoadedTpl(t);
+    switchMode(t.mode);
+    setShowTpl(false);
+  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
-      {/* Mode tab strip */}
+      {/* Mode tabs */}
       <div className="mode-strip">
-        <button className={`mode-tab ${mode === "standard" ? "active" : ""}`} onClick={() => switchMode("standard")}>
-          Standard
-        </button>
-        <button className={`mode-tab ${mode === "custom" ? "active" : ""}`} onClick={() => switchMode("custom")}>
-          ⚙ Custom
-        </button>
+        <button className={`mode-tab ${mode === "standard" ? "active" : ""}`} onClick={() => switchMode("standard")}>Standard</button>
+        <button className={`mode-tab ${mode === "custom" ? "active" : ""}`} onClick={() => switchMode("custom")}>⚙ Custom</button>
       </div>
 
-      {mode === "standard" ? <StandardMode /> : <CustomMode />}
+      {mode === "standard"
+        ? <StandardMode key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} />
+        : <CustomMode   key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} />
+      }
+
+      {showTemplates && (
+        <TemplatesPanel
+          templates={templates}
+          onLoad={loadTemplate}
+          onDelete={deleteTemplate}
+          onClose={() => setShowTpl(false)}
+        />
+      )}
     </div>
   );
 }
