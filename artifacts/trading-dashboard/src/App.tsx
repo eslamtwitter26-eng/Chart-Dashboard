@@ -7,7 +7,7 @@ const ThemeCtx = createContext<"dark" | "light">("dark");
 // ─── Types & Data ─────────────────────────────────────────────────────────────
 
 type AssetGroup = "metals" | "indices" | "forex";
-type DashMode   = "standard" | "custom";
+type DashMode   = "standard" | "custom" | "daily";
 
 interface Asset { symbol: string; label: string; group: AssetGroup }
 
@@ -771,6 +771,113 @@ function CustomMode({
   );
 }
 
+// ─── Daily Analysis mode ──────────────────────────────────────────────────────
+
+interface EmailData {
+  subject: string;
+  from: string;
+  date: string;
+  html: string;
+}
+
+function DailyAnalysisMode({ theme }: { theme: "dark" | "light" }) {
+  const [data, setData]       = useState<EmailData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
+
+  const fetchEmail = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/emails/latest");
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.message ?? json.error ?? "Failed to fetch email");
+        setData(null);
+      } else {
+        setData(json as EmailData);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchEmail(); }, [fetchEmail]);
+
+  const iframeSrc = useMemo(() => {
+    if (!data?.html) return "";
+    const bg    = theme === "dark" ? "#131722" : "#f5f6fa";
+    const color = theme === "dark" ? "#d1d4dc" : "#1a1e2e";
+    const styled = `<html><head><meta charset="utf-8"><style>
+      body{margin:0;padding:24px;background:${bg};color:${color};font-family:system-ui,sans-serif;font-size:14px;line-height:1.6;}
+      img{max-width:100%;height:auto;display:block;margin:8px 0;}
+      table{max-width:100%!important;}
+      a{color:#2962ff;}
+    </style></head><body>${data.html}</body></html>`;
+    return `data:text/html;charset=utf-8,${encodeURIComponent(styled)}`;
+  }, [data, theme]);
+
+  const fmtDate = (iso: string) => {
+    try { return new Date(iso).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }); }
+    catch { return iso; }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      {/* Daily toolbar */}
+      <div className="toolbar">
+        <div className="logo">DAILY ANALYSIS</div>
+        <div className="toolbar-sep" />
+        {data && (
+          <div className="daily-meta">
+            <span className="daily-subject">{data.subject}</span>
+            <span className="daily-from">{data.from}</span>
+            <span className="daily-date">{fmtDate(data.date)}</span>
+          </div>
+        )}
+        <div style={{ flex: 1 }} />
+        <button className="toolbar-icon-btn" onClick={fetchEmail} disabled={loading} title="Refresh">
+          {loading ? "⏳" : "🔄"} Refresh
+        </button>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
+        {loading && (
+          <div className="daily-loading">
+            <div className="daily-spinner" />
+            <div>Fetching latest Trading Central analysis…</div>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="daily-error">
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Could not load email</div>
+            <div style={{ fontSize: 12, color: "hsl(var(--muted))", maxWidth: 480, textAlign: "center", lineHeight: 1.6 }}>
+              {error}
+            </div>
+            <button className="toolbar-icon-btn" style={{ marginTop: 16 }} onClick={fetchEmail}>
+              🔄 Try again
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && data && (
+          <iframe
+            src={iframeSrc}
+            title="Daily Analysis Email"
+            sandbox="allow-same-origin"
+            style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── App shell ────────────────────────────────────────────────────────────────
 
 const KEY_THEME = "tdash-theme-v1";
@@ -834,11 +941,14 @@ export default function App() {
         <div className="mode-strip">
           <button className={`mode-tab ${mode === "standard" ? "active" : ""}`} onClick={() => switchMode("standard")}>Standard</button>
           <button className={`mode-tab ${mode === "custom" ? "active" : ""}`} onClick={() => switchMode("custom")}>⚙ Custom</button>
+          <button className={`mode-tab ${mode === "daily" ? "active" : ""}`} onClick={() => switchMode("daily")}>📰 Daily Analysis</button>
         </div>
 
         {mode === "standard"
           ? <StandardMode key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} theme={theme} onToggleTheme={toggleTheme} />
-          : <CustomMode   key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} theme={theme} onToggleTheme={toggleTheme} />
+          : mode === "custom"
+          ? <CustomMode   key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} theme={theme} onToggleTheme={toggleTheme} />
+          : <DailyAnalysisMode theme={theme} />
         }
 
         {showTemplates && (
