@@ -79,10 +79,17 @@ router.get("/emails/latest", async (req, res) => {
     }
     res.json(email);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
     req.log.error({ err }, "Failed to fetch email");
+    const message = err instanceof Error ? err.message : String(err);
+    const isAuth = err instanceof Error && (err as { authenticationFailed?: boolean }).authenticationFailed;
+
     if (message.includes("GMAIL_USER") || message.includes("GMAIL_APP_PASSWORD")) {
       res.status(503).json({ error: "not_configured", message });
+    } else if (isAuth) {
+      res.status(401).json({
+        error: "auth_failed",
+        message: "Gmail authentication failed. Please check:\n1. IMAP is enabled in Gmail Settings → See All Settings → Forwarding and POP/IMAP → Enable IMAP\n2. Your App Password is correct (16 chars, no spaces)\n3. 2-Step Verification is active on your Google Account"
+      });
     } else {
       res.status(500).json({ error: "fetch_failed", message });
     }
