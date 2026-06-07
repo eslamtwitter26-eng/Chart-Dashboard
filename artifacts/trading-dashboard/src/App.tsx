@@ -1,4 +1,8 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext } from "react";
+
+// ─── Theme context ─────────────────────────────────────────────────────────────
+
+const ThemeCtx = createContext<"dark" | "light">("dark");
 
 // ─── Types & Data ─────────────────────────────────────────────────────────────
 
@@ -118,11 +122,12 @@ const uid = () => `s${++_id}`;
 
 // ─── TradingView chart ────────────────────────────────────────────────────────
 
-function TvChart({ symbol, interval }: { symbol: string; interval: string }) {
+function TvChart({ symbol, interval, label }: { symbol: string; interval: string; label?: string }) {
+  const theme = useContext(ThemeCtx);
   const src = useMemo(() => {
     const p = new URLSearchParams({
       symbol, interval,
-      theme: "dark", style: "1", locale: "en",
+      theme, style: "1", locale: "en",
       hide_top_toolbar: "1",
       hide_legend: "1",
       hide_side_toolbar: "1",
@@ -137,17 +142,20 @@ function TvChart({ symbol, interval }: { symbol: string; interval: string }) {
       no_referral_id: "1",
     });
     return `https://www.tradingview.com/widgetembed/?${p.toString()}`;
-  }, [symbol, interval]);
+  }, [symbol, interval, theme]);
 
   return (
-    <iframe
-      src={src}
-      title={`${symbol}-${interval}`}
-      allowFullScreen
-      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-      loading="lazy"
-      style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-    />
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {label && <div className="chart-label">{label}</div>}
+      <iframe
+        src={src}
+        title={`${symbol}-${interval}`}
+        allowFullScreen
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        loading="lazy"
+        style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+      />
+    </div>
   );
 }
 
@@ -474,14 +482,26 @@ function FullscreenOverlay({
   );
 }
 
+// ─── Theme toggle button ──────────────────────────────────────────────────────
+
+function ThemeToggle({ theme, onToggle }: { theme: "dark" | "light"; onToggle: () => void }) {
+  return (
+    <button className="toolbar-icon-btn" onClick={onToggle} title="Toggle theme">
+      {theme === "dark" ? "☀️" : "🌙"}
+    </button>
+  );
+}
+
 // ─── Standard mode ────────────────────────────────────────────────────────────
 
 function StandardMode({
-  templates, onSaveTemplate, onOpenTemplates,
+  templates, onSaveTemplate, onOpenTemplates, theme, onToggleTheme,
 }: {
   templates: SavedTemplate[];
   onSaveTemplate: (t: Omit<SavedTemplate, "id" | "createdAt">) => void;
   onOpenTemplates: () => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 }) {
   const saved = load(KEY_STD, { symbols: ["TVC:GOLD","FOREXCOM:SPXUSD","FOREXCOM:NSXUSD","FX:EURUSD"], tfInterval: "D", count: 4 });
   const [symbols, setSymbols]   = useState<string[]>(saved.symbols);
@@ -515,7 +535,8 @@ function StandardMode({
         <button className="toolbar-icon-btn" onClick={onOpenTemplates}>
           📁 Templates {templates.length > 0 && <span className="badge">{templates.length}</span>}
         </button>
-        <span className="layout-info">{slots.length}/{symbols.length} · {cols}×{rows} · double-click to fullscreen</span>
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        <span className="layout-info">{slots.length}/{symbols.length} · {cols}×{rows} · double-click = fullscreen</span>
       </div>
 
       {slots.length === 0 ? (
@@ -529,7 +550,7 @@ function StandardMode({
           {slots.map((a, i) => (
             <div key={`${a.symbol}-${tf.interval}`} style={{ minHeight: 0, height: "100%", cursor: "crosshair" }}
               onDoubleClick={() => setFsIdx(i)}>
-              <TvChart symbol={a.symbol} interval={tf.interval} />
+              <TvChart symbol={a.symbol} interval={tf.interval} label={`${a.label} · ${tf.short}`} />
             </div>
           ))}
         </div>
@@ -559,11 +580,13 @@ function StandardMode({
 // ─── Custom mode ──────────────────────────────────────────────────────────────
 
 function CustomMode({
-  templates, onSaveTemplate, onOpenTemplates,
+  templates, onSaveTemplate, onOpenTemplates, theme, onToggleTheme,
 }: {
   templates: SavedTemplate[];
   onSaveTemplate: (t: Omit<SavedTemplate, "id" | "createdAt">) => void;
   onOpenTemplates: () => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 }) {
   const savedCustom = load<{ slots: CustomSlot[] }>(KEY_CUSTOM, {
     slots: [
@@ -669,7 +692,8 @@ function CustomMode({
         <button className="toolbar-icon-btn has-badge" onClick={onOpenTemplates}>
           📁 Templates {templates.length > 0 && <span className="badge">{templates.length}</span>}
         </button>
-        <span className="layout-info">{visibleSlots.length} chart{visibleSlots.length !== 1 ? "s" : ""} · {cols}×{rows} · double-click to fullscreen</span>
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        <span className="layout-info">{visibleSlots.length} chart{visibleSlots.length !== 1 ? "s" : ""} · {cols}×{rows} · double-click = fullscreen</span>
       </div>
 
       {slots.length === 0 ? (
@@ -749,12 +773,22 @@ function CustomMode({
 
 // ─── App shell ────────────────────────────────────────────────────────────────
 
+const KEY_THEME = "tdash-theme-v1";
+
 export default function App() {
   const [mode, setMode]             = useState<DashMode>(() => load<DashMode>(KEY_MODE, "standard"));
   const [templates, setTemplates]   = useState<SavedTemplate[]>(() => loadTemplates());
   const [showTemplates, setShowTpl] = useState(false);
   const [loadedTpl, setLoadedTpl]   = useState<SavedTemplate | null>(null);
+  const [theme, setTheme]           = useState<"dark" | "light">(() => load<"dark" | "light">(KEY_THEME, "dark"));
 
+  // Apply theme class to <html> so CSS vars take effect globally
+  useEffect(() => {
+    document.documentElement.classList.toggle("light", theme === "light");
+    persist(KEY_THEME, theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => setTheme(t => t === "dark" ? "light" : "dark"), []);
   const switchMode = (m: DashMode) => { setMode(m); persist(KEY_MODE, m); };
 
   const saveTemplate = useCallback((t: Omit<SavedTemplate, "id" | "createdAt">) => {
@@ -794,26 +828,28 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
-      {/* Mode tabs */}
-      <div className="mode-strip">
-        <button className={`mode-tab ${mode === "standard" ? "active" : ""}`} onClick={() => switchMode("standard")}>Standard</button>
-        <button className={`mode-tab ${mode === "custom" ? "active" : ""}`} onClick={() => switchMode("custom")}>⚙ Custom</button>
+    <ThemeCtx.Provider value={theme}>
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+        {/* Mode tabs */}
+        <div className="mode-strip">
+          <button className={`mode-tab ${mode === "standard" ? "active" : ""}`} onClick={() => switchMode("standard")}>Standard</button>
+          <button className={`mode-tab ${mode === "custom" ? "active" : ""}`} onClick={() => switchMode("custom")}>⚙ Custom</button>
+        </div>
+
+        {mode === "standard"
+          ? <StandardMode key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} theme={theme} onToggleTheme={toggleTheme} />
+          : <CustomMode   key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} theme={theme} onToggleTheme={toggleTheme} />
+        }
+
+        {showTemplates && (
+          <TemplatesPanel
+            templates={templates}
+            onLoad={loadTemplate}
+            onDelete={deleteTemplate}
+            onClose={() => setShowTpl(false)}
+          />
+        )}
       </div>
-
-      {mode === "standard"
-        ? <StandardMode key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} />
-        : <CustomMode   key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} />
-      }
-
-      {showTemplates && (
-        <TemplatesPanel
-          templates={templates}
-          onLoad={loadTemplate}
-          onDelete={deleteTemplate}
-          onClose={() => setShowTpl(false)}
-        />
-      )}
-    </div>
+    </ThemeCtx.Provider>
   );
 }

@@ -17,6 +17,22 @@
   --font: 'Inter', system-ui, sans-serif;
 }
 
+/* ── Light theme overrides (applied to <html> with .light class) ── */
+html.light {
+  --bg:        220 20% 97%;
+  --bg2:       220 20% 93%;
+  --bg3:       220 18% 88%;
+  --border:    220 16% 80%;
+  --border2:   220 14% 72%;
+  --text:      220 30% 12%;
+  --text2:     220 18% 32%;
+  --muted:     220 12% 52%;
+  --primary:   210 90% 44%;
+  --primary-d: 210 90% 36%;
+  --green:     142 60% 34%;
+  --red:       0 65% 45%;
+}
+
 @layer base {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
