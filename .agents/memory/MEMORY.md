@@ -1,0 +1,1 @@
+- [Gmail IMAP setup](gmail-imap-setup.md) — GMAIL_USER must be `eg.financefx@gmail.com`; imapflow/mailparser must be esbuild externals; strip spaces from App Password

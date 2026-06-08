@@ -34,4 +34,4 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-GMAIL_USER = "financefx@gmail.com"
+GMAIL_USER = "eg.financefx@gmail.com"
