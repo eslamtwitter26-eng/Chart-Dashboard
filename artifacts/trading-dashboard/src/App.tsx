@@ -773,77 +773,191 @@ function CustomMode({
 
 // ─── Daily Analysis mode ──────────────────────────────────────────────────────
 
-interface EmailData {
-  subject: string;
-  from: string;
-  date: string;
-  html: string;
+interface AssetCard {
+  id: string;
+  assetName: string;
+  pivot: string;
+  watchText: string;
+  preference: string;
+  alternative: string;
+  comment: string;
+  chartUrl: string;
+  direction: "bullish" | "bearish" | "neutral";
 }
 
-function DailyAnalysisMode({ theme }: { theme: "dark" | "light" }) {
-  const [data, setData]       = useState<EmailData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+interface EmailData {
+  subject: string;
+  session: string;
+  date: string;
+  receivedAt: string;
+  cards: AssetCard[];
+  fetchedAt: number;
+  cacheAge?: number;
+}
 
-  const fetchEmail = useCallback(async () => {
-    setLoading(true);
+function DirectionBadge({ dir }: { dir: AssetCard["direction"] }) {
+  return (
+    <span className={`direction-badge direction-badge--${dir}`}>
+      {dir === "bullish" ? "▲ BULLISH" : dir === "bearish" ? "▼ BEARISH" : "◆ NEUTRAL"}
+    </span>
+  );
+}
+
+function AnalysisCard({ card, idx }: { card: AssetCard; idx: number }) {
+  const [imgError, setImgError] = useState(false);
+  return (
+    <div
+      className={`asset-card asset-card--${card.direction}`}
+      style={{ animationDelay: `${0.04 + idx * 0.055}s` }}
+    >
+      {/* Card header */}
+      <div className="asset-card__header">
+        <span className="asset-card__name">{card.assetName}</span>
+        <DirectionBadge dir={card.direction} />
+      </div>
+
+      {/* Accent bar */}
+      <div className={`asset-card__accent asset-card__accent--${card.direction}`} />
+
+      {/* Watch text (key price level headline) */}
+      {card.watchText && (
+        <div className="asset-card__watch">{card.watchText}</div>
+      )}
+
+      {/* Chart image */}
+      {card.chartUrl && !imgError ? (
+        <div className="asset-card__chart-wrap">
+          <img
+            className="asset-card__chart"
+            src={card.chartUrl}
+            alt={`${card.assetName} chart`}
+            onError={() => setImgError(true)}
+          />
+        </div>
+      ) : (
+        <div className="asset-card__chart-placeholder">
+          <span style={{ fontSize: 28, opacity: 0.3 }}>📈</span>
+        </div>
+      )}
+
+      {/* Analysis body */}
+      <div className="asset-card__body">
+        {card.pivot && (
+          <div className="asset-card__field">
+            <div className="asset-card__field-label">Pivot</div>
+            <div className="asset-card__pivot">{card.pivot}</div>
+          </div>
+        )}
+
+        <div className="asset-card__divider" />
+
+        {card.preference && (
+          <div className="asset-card__field">
+            <div className="asset-card__field-label">Our Preference</div>
+            <div className="asset-card__field-value">{card.preference}</div>
+          </div>
+        )}
+
+        {card.alternative && (
+          <div className="asset-card__field">
+            <div className="asset-card__field-label">Alternative Scenario</div>
+            <div className="asset-card__field-value asset-card__field-value--alt">{card.alternative}</div>
+          </div>
+        )}
+
+        {card.comment && (
+          <div className="asset-card__field">
+            <div className="asset-card__field-label">Comment</div>
+            <div className="asset-card__field-value asset-card__field-value--comment">{card.comment}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
+  const [data, setData]           = useState<EmailData | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
+
+  const doFetch = useCallback(async (force = false) => {
+    if (force) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/emails/latest");
-      const json = await res.json();
+      const url    = force ? "/api/emails/refresh" : "/api/emails/latest";
+      const method = force ? "POST" : "GET";
+      const res    = await fetch(url, { method });
+      const json   = await res.json();
       if (!res.ok) {
         setError(json.message ?? json.error ?? "Failed to fetch email");
         setData(null);
       } else {
         setData(json as EmailData);
+        setLastFetch(new Date());
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { fetchEmail(); }, [fetchEmail]);
+  useEffect(() => {
+    doFetch(false);
+    const t = setInterval(() => doFetch(false), 30 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [doFetch]);
 
-  const iframeSrc = useMemo(() => {
-    if (!data?.html) return "";
-    const bg    = theme === "dark" ? "#131722" : "#f5f6fa";
-    const color = theme === "dark" ? "#d1d4dc" : "#1a1e2e";
-    const styled = `<html><head><meta charset="utf-8"><style>
-      body{margin:0;padding:24px;background:${bg};color:${color};font-family:system-ui,sans-serif;font-size:14px;line-height:1.6;}
-      img{max-width:100%;height:auto;display:block;margin:8px 0;}
-      table{max-width:100%!important;}
-      a{color:#2962ff;}
-    </style></head><body>${data.html}</body></html>`;
-    return `data:text/html;charset=utf-8,${encodeURIComponent(styled)}`;
-  }, [data, theme]);
-
-  const fmtDate = (iso: string) => {
-    try { return new Date(iso).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }); }
-    catch { return iso; }
+  const fmtAge = (d: Date) => {
+    const secs = Math.round((Date.now() - d.getTime()) / 1000);
+    if (secs < 60)  return "just now";
+    if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+    return `${Math.floor(secs / 3600)}h ago`;
   };
+
+  const isBusy = loading || refreshing;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      {/* Daily toolbar */}
+      {/* Toolbar */}
       <div className="toolbar">
         <div className="logo">DAILY ANALYSIS</div>
         <div className="toolbar-sep" />
+
         {data && (
-          <div className="daily-meta">
-            <span className="daily-subject">{data.subject}</span>
-            <span className="daily-from">{data.from}</span>
-            <span className="daily-date">{fmtDate(data.date)}</span>
+          <div className="daily-header-meta">
+            <span className="daily-session-badge">{data.session}</span>
+            <span className="daily-date-text">{data.date}</span>
+            {data.cards.length > 0 && (
+              <span className="daily-count-pill">{data.cards.length} assets</span>
+            )}
           </div>
         )}
+
         <div style={{ flex: 1 }} />
-        <button className="toolbar-icon-btn" onClick={fetchEmail} disabled={loading} title="Refresh">
-          {loading ? "⏳" : "🔄"} Refresh
+
+        {lastFetch && !isBusy && (
+          <span style={{ fontSize: 10, color: "hsl(var(--muted))", marginRight: 6 }}>
+            Updated {fmtAge(lastFetch)}
+          </span>
+        )}
+
+        <button
+          className={`toolbar-icon-btn${refreshing ? " toolbar-icon-btn--spin" : ""}`}
+          onClick={() => doFetch(true)}
+          disabled={isBusy}
+          title="Force refresh from Gmail"
+        >
+          <span className={refreshing ? "spin-icon" : ""}>🔄</span>
+          {refreshing ? "Fetching…" : "Refresh"}
         </button>
       </div>
 
-      {/* Content */}
+      {/* Content area */}
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
         {loading && (
           <div className="daily-loading">
@@ -859,19 +973,28 @@ function DailyAnalysisMode({ theme }: { theme: "dark" | "light" }) {
             <div style={{ fontSize: 12, color: "hsl(var(--muted))", maxWidth: 480, textAlign: "center", lineHeight: 1.6 }}>
               {error}
             </div>
-            <button className="toolbar-icon-btn" style={{ marginTop: 16 }} onClick={fetchEmail}>
+            <button className="toolbar-icon-btn" style={{ marginTop: 16 }} onClick={() => doFetch(true)}>
               🔄 Try again
             </button>
           </div>
         )}
 
-        {!loading && !error && data && (
-          <iframe
-            src={iframeSrc}
-            title="Daily Analysis Email"
-            sandbox="allow-same-origin"
-            style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-          />
+        {!loading && !error && data && data.cards.length === 0 && (
+          <div className="daily-error">
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>No asset cards found</div>
+            <div style={{ fontSize: 12, color: "hsl(var(--muted))", marginTop: 6 }}>
+              The email was fetched but no structured asset sections were detected.
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && data && data.cards.length > 0 && (
+          <div className={`analysis-grid${refreshing ? " analysis-grid--refreshing" : ""}`}>
+            {data.cards.map((card, i) => (
+              <AnalysisCard key={card.id} card={card} idx={i} />
+            ))}
+          </div>
         )}
       </div>
     </div>
