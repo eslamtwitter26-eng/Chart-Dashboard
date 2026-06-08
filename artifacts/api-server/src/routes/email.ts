@@ -16,7 +16,7 @@ async function fetchLatestTradingCentralEmail() {
     host: "imap.gmail.com",
     port: 993,
     secure: true,
-    auth: { user, pass },
+    auth: { user, pass: pass.replace(/\s/g, "") },
     logger: false,
   });
 
