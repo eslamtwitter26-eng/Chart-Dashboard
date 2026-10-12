@@ -2,5 +2,5 @@
 - [Git provider authentication](git-provider-authentication.md) — a healthy GitHub connection does not guarantee workspace Git authentication; verify transport before pushing.
 - [TradingView study verification](tradingview-study-verification.md) — verify selected indicators in the rendered widget; valid controls and encoded URLs do not prove studies load.
 - [Analysis data scope](analysis-data-scope.md) — keep existing TradingView charts intact; independent prices are approved only for the separate gold chart.
-- [Gold provider quality](gold-provider-quality.md) — gold history can have duplicate times and inconsistent OHLC; disclose omissions and never repair prices silently.
-- [Gold workspace interactions](gold-workspace-interactions.md) — keep free mobile/desktop pan alongside weekend compression; ICT replaces only Gold Lab’s local indicators.
+- [Gold provider quality](gold-provider-quality.md) — legacy Twelve Data anomalies; do not apply spot-gold weekend filtering to the replacement Binance token market.
+- [Gold workspace interactions](gold-workspace-interactions.md) — supplied HTML supersedes earlier native chart choices; changes remain scoped to Gold Lab.

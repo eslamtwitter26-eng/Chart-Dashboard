@@ -1,7 +1,9 @@
 ---
 name: Gold provider history quality
-description: Source-history irregularities and why invalid gold OHLC must not be silently repaired.
+description: Legacy Twelve Data gold-feed irregularities; not a reason to filter the replacement Binance token market.
 ---
+
+These provider-specific observations concern the earlier Twelve Data implementation. Gold Lab was subsequently replaced at the user's request with their Binance PAXG/USDT code; do not apply spot-gold weekend filtering to that 24/7 token market.
 
 Twelve Data XAU/USD history can contain duplicate daily candle-opening timestamps and older monthly rows whose open or close is outside the stated high/low. Successful HTTP responses are not sufficient evidence that every candle is usable.
 

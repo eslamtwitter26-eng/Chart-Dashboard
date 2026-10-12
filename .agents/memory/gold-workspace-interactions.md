@@ -1,6 +1,6 @@
 ---
 name: Gold workspace interactions
-description: User-approved weekend compression must coexist with free dragging and local ICT-only indicator changes.
+description: Earlier native Gold Lab interaction requirements and scope boundaries for the supplied HTML replacement.
 ---
 
 Keep Gold Lab freely pannable on desktop and with single-finger hold-and-drag on phones. Do not lock chart edges to eliminate future whitespace.
@@ -14,3 +14,9 @@ ICT replaces the traditional indicators only inside Gold Lab; the user explicitl
 **Why:** The user requested FVG, Order Blocks, Breaker Blocks and related ICT tools on every Gold Lab timeframe, but scoped removal of RSI/EMA/SMA to Gold Lab.
 
 **How to apply:** Keep these changes isolated from Standard/Custom widgets. Explain the chosen mechanical detection rules on request; do not claim a universal ICT implementation, guaranteed signals, or a Pine runtime.
+
+The user later replaced the whole Gold Lab implementation with their supplied HTML. The prior weekend-compression, countdown and indicator choices above describe the earlier native XAU/USD version, not requirements to rewrite that supplied replacement.
+
+**Why:** The user explicitly requested using their code; its PAXG/USDT market trades through the weekend and its available tools differ from the prior implementation.
+
+**How to apply:** Preserve the replacement unless the user requests changes to it. Still keep all Gold Lab changes isolated from the other tabs, and do not present token prices as identical to spot gold.
