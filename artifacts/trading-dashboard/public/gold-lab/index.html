@@ -197,6 +197,9 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .ictsum { font-size: 12.5px; color: var(--fg); line-height: 1.6; }
 .ictsum .note { color: var(--mute); font-size: 11px; display: block; }
 #ict { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+#elliott { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+.ew-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ew-controls select { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px; font: inherit; }
 
 /* footer */
 .foot {
@@ -226,6 +229,11 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .title { font-size: 19px; }
   .stats { gap: 14px; }
 }
+@media (max-height: 500px) {
+  /* Keep a usable plot in landscape; the iframe document can scroll instead
+     of squeezing the entire price chart beneath expanded analysis controls. */
+  .app { height: auto; min-height: 100%; grid-template-rows: auto auto minmax(240px, 1fr) auto; }
+}
 </style>
 </head>
 <body>
@@ -253,17 +261,35 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
         <button class="type-btn" id="t-candle" aria-pressed="true" type="button">شموع</button>
         <button class="type-btn" id="t-line" aria-pressed="false" type="button">خط</button>
         <button class="type-btn ict-btn" id="t-ict" aria-pressed="false" type="button">ICT</button>
+        <button class="type-btn ict-btn" id="t-elliott" aria-pressed="false" type="button">موجات إليوت</button>
       </div>
     </div>
     <div class="ictbar" id="ictbar" hidden>
       <div class="chips" id="chips"></div>
       <div class="ictsum" id="ictsum"></div>
     </div>
+    <div class="ictbar" id="elliottbar" hidden>
+      <div class="ew-controls">
+        <label for="ew-depth">حساسية القمم والقيعان</label>
+        <select id="ew-depth"><option value="3">تفصيلية · 3 شموع</option><option value="5">متوسطة · 5 شموع</option><option value="8">أكبر · 8 شموع</option></select>
+        <button class="type-btn" id="ew-focus" type="button" disabled>عرض آخر نموذج</button>
+      </div>
+      <div class="ictsum" id="ew-summary" aria-live="polite"></div>
+      <details><summary>قواعد الترقيم</summary><div class="ictsum">
+        نماذج مرشحة للدفع الاعتيادي 1–5 وتصحيح A–B–C شبيه بالزيجزاج. الموجة 2 لا تتجاوز بداية 1، والموجة 3 ليست الأقصر،
+        والموجة 4 لا تتداخل مع نطاق 1، والموجة 5 تتجاوز نهاية 3. القمم والقيعان تؤكد بعد عدد الشموع المختار
+        على جانبيها، باستخدام الشموع المغلقة فقط. الخط الرمادي قمم وقيعان مؤكدة وليس ترقيم موجات.
+        لا يتحقق من التقسيم الداخلي للموجات، ولا يشمل القطريات أو الخامسة المبتورة أو التصحيحات المركبة.
+        يفحص أحدث 2000 شمعة مغلقة ويعرض حتى ثلاثة نماذج غير متداخلة؛ زر «عرض آخر نموذج» ينقلك إليه إن كان خارج الشاشة.
+        هذا ترقيم آلي محتمل قابل للتغير مع ظهور قمم مؤكدة جديدة، وليس توصية أو توقعًا مؤكدًا.
+      </div></details>
+    </div>
   </div>
 
   <div class="chart-wrap">
     <div id="chart"></div>
     <canvas id="ict"></canvas>
+    <canvas id="elliott"></canvas>
     <div class="legend" id="legend"></div>
     <div class="overlay" id="overlay" hidden>
       <div>
@@ -279,6 +305,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   </footer>
 </div>
 
+<script src="./elliott.js"></script>
 <script>
 (function () {
   "use strict";
@@ -394,6 +421,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     line.setData(list.map(function (b) { return { time: b.time, value: b.close }; }));
     vol.setData(list.map(volPoint));
     ictDirty = true;
+    ewDirty = true;
   }
 
   function fetchKlines(interval, endTime, limit) {
@@ -406,7 +434,13 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
         return r.json();
       }).then(function (rows) {
         if (!Array.isArray(rows)) throw new Error("bad response");
-        return rows.map(toBar);
+        return rows.map(function (row, i) {
+          var b = toBar(row);
+          // The newest REST row can still be in progress; only historical
+          // requests or earlier rows are confirmed without a stream close flag.
+          b.closed = Boolean(endTime) || i < rows.length - 1;
+          return b;
+        });
       }).catch(function (err) {
         tries++;
         restIdx++;
@@ -485,7 +519,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   }
 
   function applyKline(k) {
-    var b = { time: Math.floor(k.t / 1000), open: +k.o, high: +k.h, low: +k.l, close: +k.c, volume: +k.v };
+    var b = { time: Math.floor(k.t / 1000), open: +k.o, high: +k.h, low: +k.l, close: +k.c, volume: +k.v, closed: k.x === true };
     var last = bars[bars.length - 1];
     if (last && b.time < last.time) return;
     try {
@@ -495,6 +529,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     } catch (e) { return; }
     if (last && last.time === b.time) bars[bars.length - 1] = b; else bars.push(b);
     ictDirty = true;
+    ewDirty = true;
     if (!document.querySelector(".chart-wrap:hover")) setLegend(b);
   }
 
@@ -566,6 +601,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     closeWS();
     noMore = false;
     loadingMore = false;
+    ewModel = null; ewDirty = true; ewReady = false;
+    if (ewOn) updateElliottSummary();
     $("overlay").hidden = true;
     setStatus("loading", "جارٍ التحميل");
     document.querySelectorAll(".tf").forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === tf)); });
@@ -573,6 +610,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     fetchKlines(tf).then(function (list) {
       if (myGen !== gen) return;
       bars = list;
+      ewReady = true;
       paint(bars);
       chart.timeScale().fitContent();
       var shown = Math.min(bars.length, 150);
@@ -610,6 +648,27 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   var ictOn = false, model = null, ictDirty = true, lastCompute = 0, raf = 0;
   var htf = { at: 0, d: null, w: null };
   var cv = $("ict"), cx = cv.getContext("2d");
+  var ewOn = false, ewModel = null, ewDirty = true, ewLastCompute = 0, ewDepth = 3, ewReady = false;
+  var ewCanvas = $("elliott");
+  try {
+    ewOn = localStorage.getItem("gold-elliott-on") === "true";
+    var storedDepth = Number(localStorage.getItem("gold-elliott-depth"));
+    if ([3, 5, 8].indexOf(storedDepth) >= 0) ewDepth = storedDepth;
+  } catch (e) {}
+  $("ew-depth").value = String(ewDepth);
+  // In line mode the close-only range can exclude a wave's real wick extreme.
+  // Include visible numbered pivots, without letting offscreen history scale it.
+  line.applyOptions({ autoscaleInfoProvider: function (original) {
+    var info = original(), range = chart.timeScale().getVisibleRange();
+    if (!ewOn || !ewModel || !info || !range) return info;
+    var min = info.priceRange.minValue, max = info.priceRange.maxValue;
+    ewModel.patterns.forEach(function (p) { p.points.forEach(function (point) {
+      if (point.time >= range.from && point.time <= range.to) {
+        min = Math.min(min, point.price); max = Math.max(max, point.price);
+      }
+    }); });
+    return { priceRange: { minValue: min, maxValue: max }, margins: info.margins };
+  } });
 
   /*ICT-COMPUTE-START*/
   function computeICT(all) {
@@ -867,14 +926,23 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   }
 
   function ictFrame(now) {
-    if (!ictOn) return;
-    if (ictDirty && now - lastCompute > 700) {
+    if (!ictOn && !ewOn) return;
+    if (ictOn && ictDirty && now - lastCompute > 700) {
       ictDirty = false;
       lastCompute = now;
       try { model = computeICT(bars); } catch (e) { model = null; }
       updateSummary();
     }
-    drawICT();
+    if (ictOn) drawICT();
+    if (ewOn) {
+      if (ewReady && ewDirty && now - ewLastCompute > 700) {
+        ewDirty = false; ewLastCompute = now;
+        ewModel = GoldElliott.detect(bars, ewDepth);
+        if (chartType === "line") line.applyOptions({});
+        updateElliottSummary();
+      }
+      GoldElliott.draw(ewCanvas, chart, chartType === "line" ? line : candles, ewModel);
+    }
     raf = requestAnimationFrame(ictFrame);
   }
 
@@ -887,12 +955,56 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
       ictDirty = true;
       lastCompute = 0;
       loadLevels();
-      raf = requestAnimationFrame(ictFrame);
     } else {
       cx.clearRect(0, 0, cv.width, cv.height);
     }
+    if (ictOn || ewOn) raf = requestAnimationFrame(ictFrame);
   }
   $("t-ict").addEventListener("click", function () { setICT(!ictOn); });
+
+  function updateElliottSummary() {
+    var patterns = ewModel ? ewModel.patterns : [];
+    var latest = patterns[patterns.length - 1];
+    $("ew-focus").disabled = !latest;
+    ewCanvas.dataset.patterns = String(patterns.length);
+    ewCanvas.dataset.depth = String(ewDepth);
+    ewCanvas.dataset.closedBars = String(ewModel ? ewModel.closedBars : 0);
+    if (!ewReady) { $("ew-summary").textContent = "بانتظار بيانات الإطار المختار لتحليل موجات إليوت…"; return; }
+    $("ew-summary").textContent = latest
+      ? "آخر دفع محتمل: " + (latest.direction === 1 ? "صاعد" : "هابط") +
+        " 1–5 · التصحيح المؤكد: " + (latest.labels.length > 6 ? latest.labels.slice(6).join("–") : "لم يتأكد بعد") +
+        " · ارتداد 2: " + (latest.wave2Retracement * 100).toFixed(1) + "%" +
+        " · طول 3 / 1: " + latest.wave3Extension.toFixed(2) +
+        " · بداية النموذج: " + new Date(latest.points[0].time * 1000).toLocaleString("ar-EG") +
+        " · ترقيم آلي تعليمي، وليس توصية."
+      : "لا يوجد نموذج دفع 1–5 مطابق للقواعد بهذه الحساسية حتى الآن. الخط الرمادي يعرض القمم والقيعان المؤكدة دون ترقيم موجات.";
+  }
+  function setElliott(on) {
+    ewOn = on;
+    $("t-elliott").setAttribute("aria-pressed", String(on));
+    $("elliottbar").hidden = !on;
+    try { localStorage.setItem("gold-elliott-on", String(on)); } catch (e) {}
+    cancelAnimationFrame(raf);
+    if (on) { ewDirty = true; ewLastCompute = 0; updateElliottSummary(); }
+    else ewCanvas.getContext("2d").clearRect(0, 0, ewCanvas.width, ewCanvas.height);
+    line.applyOptions({});
+    if (ictOn || ewOn) raf = requestAnimationFrame(ictFrame);
+  }
+  $("t-elliott").addEventListener("click", function () { setElliott(!ewOn); });
+  $("ew-depth").addEventListener("change", function () {
+    ewDepth = Number(this.value); ewDirty = true; ewLastCompute = 0;
+    try { localStorage.setItem("gold-elliott-depth", String(ewDepth)); } catch (e) {}
+  });
+  $("ew-focus").addEventListener("click", function () {
+    if (!ewModel || !ewModel.patterns.length) return;
+    var p = ewModel.patterns[ewModel.patterns.length - 1];
+    var from = bars.findIndex(function (b) { return b.time === p.points[0].time; });
+    var to = bars.findIndex(function (b) { return b.time === p.points[p.points.length - 1].time; });
+    if (from >= 0 && to >= from) {
+      chart.timeScale().setVisibleLogicalRange({ from: from - 8, to: to + 12 });
+      chart.priceScale("right").applyOptions({ autoScale: true });
+    }
+  });
 
   LAYERS.forEach(function (l) {
     var b = document.createElement("button");
@@ -924,6 +1036,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   });
   $("retry").addEventListener("click", function () { backoff = 1500; loadTF(tf); });
 
+  setElliott(ewOn);
   loadTF(tf);
 })();
 </script>

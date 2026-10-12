@@ -16,3 +16,9 @@ The user subsequently requested replacing Gold Lab with their supplied standalon
 **Why:** The user explicitly said “استبدل جولد لاب ب هذا الكود و شغله”. The supplied code is the requested replacement, not a proposal to restyle the previous native chart.
 
 **How to apply:** Treat the uploaded implementation as the Gold Lab baseline and keep the other tabs unchanged. Identify the instrument as a gold-backed token quoted in USDT; do not call it the same spot XAU/USD instrument or promise TradingView price parity. Do not reinstate the previous data feed or remove actual crypto weekend trading unless requested.
+
+The user specifically requested adding the Elliott Wave school to this Gold Lab replacement.
+
+**Why:** Earlier requests to remove the analytical-schools list concerned the unsupported TradingView-widget integration; they do not prohibit analysis tools in the separately controlled gold chart.
+
+**How to apply:** Add or improve Elliott analysis locally in Gold Lab, preserving its existing source and ICT tools. Do not interpret this as permission to change outside TradingView indicators or claim the embedded widgets execute custom Pine code.
