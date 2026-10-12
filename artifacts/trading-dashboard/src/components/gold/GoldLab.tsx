@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGetGoldHistory, getGetGoldHistoryQueryKey, type GetGoldHistoryParams } from "@workspace/api-client-react";
 import { GoldChartEngine } from "./engine";
+import { goldTradingBars } from "./sessions";
 import { INTERVALS, loadLevels, loadSettings, saveLevels, saveSettings, type GoldLevel, type GoldSettings } from "./storage";
 import "./gold.css";
 
@@ -23,7 +24,8 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
     query: { queryKey: getGetGoldHistoryQueryKey(params), retry: false, staleTime: 120000, refetchInterval: 120000, refetchOnWindowFocus: false },
   });
   const data = q.data && q.data.interval === s.interval ? q.data : undefined;
-  const bars = data?.bars;
+  const bars = useMemo(() => data ? goldTradingBars(data.bars, s.interval) : undefined, [data, s.interval]);
+  const hiddenSessionBars = data ? data.bars.length - (bars?.length ?? 0) : 0;
   const hasBars = !!bars && bars.length > 0;
   const errMsg = q.error
     ? ((q.error as { data?: { error?: string } }).data?.error ?? (q.error as Error).message ?? "تعذر جلب البيانات")
@@ -76,12 +78,6 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
         <div className="gl-grp">{tog("sma", "SMA20")}{tog("ema", "EMA50")}{tog("rsi", "RSI14")}</div>
         <button className="gl-btn" data-testid="gold-refresh" disabled={q.isFetching} onClick={() => q.refetch()}>{q.isFetching ? "جارٍ التحديث..." : "تحديث"}</button>
       </div>
-      <div className="gl-note" data-testid="gold-notice">
-        بيانات مستقلة (XAU/USD من Twelve Data) وليست مطابقة تماماً لشارت TradingView؛ قد تختلف الأسعار. التحديث دوري كل 120 ثانية أثناء ظهور التبويب وليس لحظياً. آخر 600 شمعة كحد أقصى. المؤشرات تُحسب بجافاسكربت من الشموع المعروضة فقط؛ لا يمكن تشغيل سكربتات Pine هنا.
-      </div>
-      {data && data.discardedBars > 0 && (
-        <div className="gl-warn" data-testid="gold-data-quality" role="status">{data.dataQualityNote}</div>
-      )}
       {errMsg && hasBars && (
         <div className="gl-warn" data-testid="gold-error" role="alert">
           <span>فشل آخر تحديث: {errMsg}. الشموع المعروضة قد تكون قديمة.</span>
@@ -90,13 +86,28 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
       )}
       <div className="gl-meta" data-testid="gold-data-status" data-state={loading ? "loading" : errMsg && !hasBars ? "error" : hasBars ? "ready" : "empty"} data-count={bars?.length ?? 0} data-interval={s.interval}>
         {data && hasBars ? (<>
-          <span>المصدر: <b>{data.source}</b></span>
-          <span>وقت الجلب: <b>{utc(new Date(data.fetchedAt))}</b></span>
-          <span>افتتاح آخر شمعة: <b>{utc(new Date(last!.time * 1000))}</b></span>
-          <span>آخر إغلاق: <b>{fmt(last!.close)} {data.currency}/{data.unit}</b></span>
-          {delta !== undefined && <span>التغير عن الشمعة السابقة: <b style={{ color: `hsl(var(--${delta >= 0 ? "green" : "red"}))` }}>{delta >= 0 ? "+" : ""}{fmt(delta)}</b></span>}
-          <span>عدد الشموع: <b>{bars!.length}</b></span>
+          <span className="gl-quote">XAU/USD · آخر إغلاق <b>{fmt(last!.close)}</b></span>
+          {delta !== undefined && <b style={{ color: `hsl(var(--${delta >= 0 ? "green" : "red"}))` }}>{delta >= 0 ? "+" : ""}{fmt(delta)}</b>}
         </>) : <span>لا توجد بيانات معروضة</span>}
+        <details className="gl-details">
+          <summary className="gl-btn" data-testid="gold-data-info">
+            معلومات البيانات
+            {!!data?.discardedBars && <span className="gl-info-flag" aria-label="تنبيه جودة البيانات"> • تنبيه</span>}
+          </summary>
+          <div className="gl-info-panel">
+            <div className="gl-note" data-testid="gold-notice">
+              أسعار مستقلة من Twelve Data قد تختلف عن TradingView. التحديث كل دقيقتين، وليس بثاً لحظياً؛ حتى 600 شمعة من المصدر. السعر بالدولار للأونصة.
+            </div>
+            <p>يُضغط المحور الزمني بإخفاء الشموع الواقعة بالكامل في عطلة نهاية الأسبوع المرجعية: الجمعة 17:00 إلى الأحد 18:00 بتوقيت نيويورك. قد تختلف ساعات الوسيط؛ لا تُحذف الشموع الهادئة أثناء الجلسة، ولا تُغيّر الأسعار.</p>
+            {data && <>
+              <p>وقت الجلب: <b>{utc(new Date(data.fetchedAt))}</b></p>
+              {last && <p>افتتاح آخر شمعة معروضة: <b>{utc(new Date(last.time * 1000))}</b></p>}
+              <p>عدد الشموع المعروضة: <b>{bars?.length ?? 0}</b> · المخفية خلال الإغلاق: <b data-testid="gold-hidden-session-bars">{hiddenSessionBars}</b></p>
+              <p>المؤشرات تُحسب من الشموع المعروضة فقط.</p>
+              {data.discardedBars > 0 && <div className="gl-warn" data-testid="gold-data-quality" role="status">{data.dataQualityNote}</div>}
+            </>}
+          </div>
+        </details>
       </div>
       <div className="gl-wrap" data-testid="gold-chart" data-count={bars?.length ?? 0} data-interval={s.interval} data-chart-type={s.chartType}>
         <div className="gl-tools">
@@ -112,7 +123,7 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
             <button className="gl-btn" onClick={() => q.refetch()}>إعادة المحاولة</button>
           </div>
         )}
-        {!loading && !errMsg && data && !hasBars && <div className="gl-over">لم يرجع المزود أي شموع لهذا الإطار</div>}
+        {!loading && !errMsg && data && !hasBars && <div className="gl-over">{hiddenSessionBars > 0 ? "الشموع المتاحة تقع ضمن عطلة السوق؛ لا توجد شموع جلسة معروضة في هذا النطاق." : "لم يرجع المزود أي شموع لهذا الإطار"}</div>}
       </div>
       <div className="gl-lv">
         <span>خط سعر:</span>
