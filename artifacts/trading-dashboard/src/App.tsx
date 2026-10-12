@@ -5,6 +5,7 @@ import { normalizeIndicators, type IndicatorId } from "./lib/indicators";
 import { tradingViewUrl } from "./lib/tradingview";
 import { normalizeChartType, type ChartType } from "./lib/chart-type";
 import { resolveLayout, cellStyle, MAX_COUNT } from "./lib/layouts";
+import { GoldLab } from "./components/gold/GoldLab";
 import { DailyCard } from "./components/daily/DailyCard";
 import { DailyDetail } from "./components/daily/DailyDetail";
 import { ColorsPanel, useDailyColors, colorVars } from "./components/daily/colors";
@@ -18,7 +19,7 @@ const ThemeCtx = createContext<"dark" | "light">("dark");
 // ─── Types & Data ─────────────────────────────────────────────────────────────
 
 type AssetGroup = "metals" | "indices" | "forex";
-type DashMode   = "standard" | "custom" | "daily";
+type DashMode   = "standard" | "custom" | "daily" | "gold";
 
 interface Asset { symbol: string; label: string; group: AssetGroup }
 
@@ -945,7 +946,9 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
 const KEY_THEME = "tdash-theme-v1";
 
 export default function App() {
-  const [mode, setMode]             = useState<DashMode>(() => load<DashMode>(KEY_MODE, "standard"));
+  const [mode, setMode]             = useState<DashMode>(() =>
+    new URLSearchParams(window.location.search).get("view") === "gold"
+      ? "gold" : load<DashMode>(KEY_MODE, "standard"));
   const [templates, setTemplates]   = useState<SavedTemplate[]>(() => loadTemplates());
   const [showTemplates, setShowTpl] = useState(false);
   const [loadedTpl, setLoadedTpl]   = useState<SavedTemplate | null>(null);
@@ -1007,12 +1010,15 @@ export default function App() {
           <button className={`mode-tab ${mode === "standard" ? "active" : ""}`} onClick={() => switchMode("standard")}>Standard</button>
           <button className={`mode-tab ${mode === "custom" ? "active" : ""}`} onClick={() => switchMode("custom")}>⚙ Custom</button>
           <button className={`mode-tab ${mode === "daily" ? "active" : ""}`} onClick={() => switchMode("daily")}>📰 Daily Analysis</button>
+          <button className={`mode-tab ${mode === "gold" ? "active" : ""}`} data-testid="tab-gold-lab" onClick={() => switchMode("gold")}>Gold Lab</button>
         </div>
 
         {mode === "standard"
           ? <StandardMode key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} theme={theme} onToggleTheme={toggleTheme} />
           : mode === "custom"
           ? <CustomMode   key={loadedTpl?.id} templates={templates} onSaveTemplate={saveTemplate} onOpenTemplates={() => setShowTpl(true)} theme={theme} onToggleTheme={toggleTheme} />
+          : mode === "gold"
+          ? <GoldLab theme={theme} />
           : <DailyAnalysisMode theme={theme} />
         }
 

@@ -1,4 +1,5 @@
 - [Gmail MIME dependency](gmail-mime-dependency.md) — keep Nodemailer installed while using Mailparser; its runtime parser imports Nodemailer address parsing.
 - [Git provider authentication](git-provider-authentication.md) — a healthy GitHub connection does not guarantee workspace Git authentication; verify transport before pushing.
 - [TradingView study verification](tradingview-study-verification.md) — verify selected indicators in the rendered widget; valid controls and encoded URLs do not prove studies load.
-- [Analysis data scope](analysis-data-scope.md) — user requires analysis of the existing TradingView chart, without an independent market-data provider.
+- [Analysis data scope](analysis-data-scope.md) — keep existing TradingView charts intact; independent prices are approved only for the separate gold chart.
+- [Gold provider quality](gold-provider-quality.md) — gold history can have duplicate times and inconsistent OHLC; disclose omissions and never repair prices silently.

@@ -11,6 +11,33 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /gold/history:
+    get:
+      operationId: getGoldHistory
+      tags: [gold]
+      summary: Independent real XAU/USD OHLC history, never TradingView widget data
+      parameters:
+        - in: query
+          name: interval
+          required: true
+          schema:
+            type: string
+            enum: [1min, 5min, 15min, 30min, 45min, 1h, 2h, 4h, 8h, 1day, 1week, 1month]
+      responses:
+        "200":
+          description: Actual provider bars sorted chronologically in UTC
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoldHistory"
+        "400":
+          description: Unsupported interval
+        "429":
+          description: Provider or server rate limit
+        "502":
+          description: Invalid or unavailable upstream data
+        "503":
+          description: Missing server credentials
   /healthz:
     get:
       operationId: healthCheck
@@ -26,6 +53,37 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    GoldBar:
+      type: object
+      required: [time, open, high, low, close]
+      properties:
+        time:
+          type: integer
+          description: UTC Unix seconds at candle OPEN, not quote-update time
+        open: { type: number }
+        high: { type: number }
+        low: { type: number }
+        close: { type: number }
+    GoldHistory:
+      type: object
+      required: [symbol, source, interval, timezone, currency, unit, fetchedAt, refreshSeconds, discardedBars, dataQualityNote, bars]
+      properties:
+        symbol: { type: string }
+        source: { type: string }
+        interval: { type: string }
+        timezone: { type: string }
+        currency: { type: string }
+        unit: { type: string }
+        fetchedAt: { type: string, format: date-time }
+        refreshSeconds: { type: integer }
+        discardedBars:
+          type: integer
+          description: Historical provider rows omitted for invalid OHLC or ambiguous duplicate times
+        dataQualityNote: { type: string }
+        bars:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoldBar"
     HealthStatus:
       type: object
       properties:

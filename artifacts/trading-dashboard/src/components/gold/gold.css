@@ -1,0 +1,19 @@
+.gl{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto;direction:rtl;font-size:12px}
+.gl-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;background:hsl(var(--bg2));border-bottom:1px solid hsl(var(--border))}
+.gl-grp{display:flex;gap:2px;direction:ltr;flex-wrap:wrap}
+.gl-btn{padding:4px 9px;border-radius:5px;border:1px solid hsl(var(--border2));background:hsl(var(--bg3));color:hsl(var(--text2));font-size:12px;font-weight:600}
+.gl-btn.on{background:hsl(var(--primary)/.15);border-color:hsl(var(--primary)/.6);color:hsl(var(--primary))}
+.gl-btn:disabled{opacity:.5}
+.gl-in{padding:4px 8px;border-radius:5px;border:1px solid hsl(var(--border2));background:hsl(var(--bg));color:hsl(var(--text));width:110px;direction:ltr}
+.gl-note{padding:6px 10px;color:hsl(var(--text2));line-height:1.6;border-bottom:1px solid hsl(var(--border))}
+.gl-warn{padding:6px 10px;background:hsl(var(--red)/.12);color:hsl(var(--red));display:flex;gap:8px;align-items:center}
+.gl-meta{display:flex;flex-wrap:wrap;gap:4px 18px;padding:8px 10px;color:hsl(var(--text2))}
+.gl-meta b{color:hsl(var(--text));font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.gl-wrap{position:relative;flex:1;min-height:360px;direction:ltr}
+.gl-chart{position:absolute;inset:0}
+.gl-over{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;background:hsl(var(--bg)/.85);z-index:5;text-align:center;padding:20px;direction:rtl}
+.gl-skel{width:min(480px,80%);height:120px;border-radius:8px;background:linear-gradient(90deg,hsl(var(--bg3)),hsl(var(--border)),hsl(var(--bg3)));background-size:200% 100%;animation:glsk 1.2s linear infinite}
+@keyframes glsk{to{background-position:-200% 0}}
+.gl-lv{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-top:1px solid hsl(var(--border));align-items:center}
+.gl-chip{display:flex;gap:6px;align-items:center;padding:2px 4px 2px 8px;border-radius:12px;border:1px solid hsl(var(--border2));direction:ltr}
+.gl-tools{position:absolute;top:6px;left:6px;z-index:4;display:flex;gap:4px}
