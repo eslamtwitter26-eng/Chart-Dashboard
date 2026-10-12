@@ -1,10 +1,12 @@
 ---
 name: Analysis data scope
-description: User constraint on the data source for analytical-school features.
+description: Keep existing TradingView charts intact; independent data is approved only for the separate gold chart.
 ---
 
 The user says: "أنا لا أريدك أن تربط بيانات سوق مستقل. الـ chart أمامك من على TradingView." They want analytical schools applied to that chart, including Harmonic and ICT concepts such as Fair Value Gaps, Order Blocks, Premium and Discount.
 
-**Why:** The user explicitly rejected an independent price-feed integration after the automatic-analysis choice was interpreted as permission to add one.
+For a separate new gold chart, the user later explicitly accepted an independent price source and price differences, on condition that the existing project and charts remain unchanged.
 
-**How to apply:** Do not add an independent market-data provider or request its API key for analysis of the existing TradingView chart.
+**Why:** The user rejected an independent price-feed integration for analysis of the existing TradingView widget, but accepted it for a new gold chart under their control.
+
+**How to apply:** Keep the independent gold workspace separate. Do not replace the existing TradingView widgets or infer permission to change their data sources. Do not promise exact price/ candle parity with TVC:GOLD.
