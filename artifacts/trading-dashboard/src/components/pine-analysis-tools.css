@@ -1,0 +1,32 @@
+.pine-tools-wrap { position: relative; flex-shrink: 0; }
+.pine-tools-wrap > .dropdown-btn:disabled { opacity: .45; cursor: not-allowed; }
+.pine-backdrop { position: fixed; inset: 0; z-index: 700; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgb(0 0 0 / .6); }
+.pine-dialog {
+  width: min(560px, 100%); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 16px;
+  background: hsl(var(--bg2)); color: hsl(var(--text)); border: 1px solid hsl(var(--border2));
+  border-radius: 10px; box-shadow: 0 24px 60px rgb(0 0 0 / .45); font-size: 12px; line-height: 1.7; text-align: right;
+}
+.pine-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.pine-head h2 { font-size: 14px; font-weight: 700; margin: 0; }
+.pine-warn { margin: 0 0 12px; padding: 9px 11px; border-radius: 6px; border-inline-start: 3px solid hsl(38 92% 50%); background: hsl(38 92% 50% / .12); }
+.pine-fields { display: grid; gap: 10px; }
+.pine-fields label > span, .pine-fields legend { display: block; font-size: 11px; font-weight: 700; color: hsl(var(--muted)); margin-bottom: 4px; }
+.pine-fields fieldset { border: 0; padding: 0; margin: 0; }
+.pine-fields select { width: 100%; padding: 6px 8px; border-radius: 6px; background: hsl(var(--bg3)); color: hsl(var(--text)); border: 1px solid hsl(var(--border2)); font-size: 12px; }
+.pine-schools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.pine-schools label { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px; border-radius: 6px; border: 1px solid hsl(var(--border2)); background: hsl(var(--bg3)); cursor: pointer; font-weight: 600; }
+.pine-schools label.active { border-color: hsl(var(--primary)); background: hsl(var(--primary) / .15); }
+.pine-schools label:focus-within { outline: 2px solid hsl(var(--primary)); outline-offset: 1px; }
+.pine-schools input { accent-color: hsl(var(--primary)); }
+.pine-desc { margin: 0; color: hsl(var(--text2)); }
+.pine-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pine-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid hsl(var(--border2)); background: hsl(var(--bg3)); color: hsl(var(--text)); font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+.pine-btn.primary { background: hsl(var(--primary)); border-color: hsl(var(--primary)); color: white; }
+.pine-btn:focus-visible, .pine-dialog .mini-btn:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
+.pine-status { min-height: 18px; margin-top: 6px; color: hsl(142 60% 45%); font-weight: 600; }
+.pine-error { margin: 6px 0; padding: 8px 10px; border-radius: 6px; background: hsl(0 70% 50% / .12); border: 1px solid hsl(0 70% 50% / .4); }
+.pine-error p { margin: 0 0 6px; }
+.pine-error textarea { width: 100%; height: 160px; font-family: ui-monospace, monospace; font-size: 11px; background: hsl(var(--bg)); color: hsl(var(--text)); border: 1px solid hsl(var(--border2)); border-radius: 4px; resize: vertical; text-align: left; }
+.pine-steps { margin: 10px 0 8px; padding-inline-start: 20px; }
+.pine-note { margin: 0; color: hsl(var(--muted)); font-size: 11px; }
+@media (max-width: 520px) { .pine-schools { grid-template-columns: repeat(2, 1fr); } }
