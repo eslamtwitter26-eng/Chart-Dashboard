@@ -776,6 +776,7 @@ function CustomMode({
 interface AssetCard {
   id: string;
   assetName: string;
+  timeframe: string;
   pivot: string;
   watchText: string;
   preference: string;
@@ -812,17 +813,17 @@ function AnalysisCard({ card, idx }: { card: AssetCard; idx: number }) {
     >
       {/* Card header */}
       <div className="asset-card__header">
-        <span className="asset-card__name">{card.assetName}</span>
+        <div className="asset-card__identity">
+          <span className="asset-card__name">{card.assetName}</span>
+          <span className="asset-card__timeframe">
+            {card.timeframe === "Not specified" ? "Timeframe not specified" : `${card.timeframe} timeframe`}
+          </span>
+        </div>
         <DirectionBadge dir={card.direction} />
       </div>
 
       {/* Accent bar */}
       <div className={`asset-card__accent asset-card__accent--${card.direction}`} />
-
-      {/* Watch text (key price level headline) */}
-      {card.watchText && (
-        <div className="asset-card__watch">{card.watchText}</div>
-      )}
 
       {/* Chart image */}
       {card.chartUrl && !imgError ? (
@@ -838,6 +839,11 @@ function AnalysisCard({ card, idx }: { card: AssetCard; idx: number }) {
         <div className="asset-card__chart-placeholder">
           <span style={{ fontSize: 28, opacity: 0.3 }}>📈</span>
         </div>
+      )}
+
+      {/* Key price level from the email */}
+      {card.watchText && (
+        <div className="asset-card__watch">{card.watchText}</div>
       )}
 
       {/* Analysis body */}
