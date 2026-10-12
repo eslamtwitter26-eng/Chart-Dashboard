@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { simpleParser } from "mailparser";
+import { extractAnalysisField } from "../lib/email-fields";
 import type { Response } from "express";
 
 const router = Router();
@@ -156,20 +157,10 @@ function parseEmailHtml(html: string, subject: string, receivedAt: string): Pars
     const lines = stripHtml(sec)
       .split(/\n/)
       .map(l => l.trim())
-      .filter(l => l.length > 1);
+      .filter(l => l.length > 0);
 
     const extractAfter = (label: string): string => {
-      const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const pattern = new RegExp(`^${escapedLabel}\\s*:?\\s*(.*)$`, "i");
-      const idx = lines.findIndex(line => pattern.test(line));
-      if (idx === -1) return "";
-      const firstLine = lines[idx].match(pattern)?.[1]?.trim();
-      if (firstLine && firstLine.length > 1) return firstLine;
-      for (let j = idx + 1; j < lines.length; j++) {
-        const v = lines[j];
-        if (v && v.length > 2 && !v.endsWith(":")) return v;
-      }
-      return "";
+      return extractAnalysisField(lines, label);
     };
 
     // "watch" text from headline: e.g. "watch 4260." or "above 1.0800"
@@ -177,7 +168,9 @@ function parseEmailHtml(html: string, subject: string, receivedAt: string): Pars
     const headlineFull = headlineMatch ? stripHtml(headlineMatch[1]) : "";
     const watchText = headlineFull.includes(":") ? headlineFull.split(":").slice(1).join(":").trim() : "";
 
-    const pivot = extractAfter("Pivot:");
+    const pivot = extractAfter("Pivot:")
+      || lines.find(line => /^our pivot point is at\s+/i.test(line))?.replace(/^our pivot point is at\s+/i, "").replace(/\.$/, "")
+      || "";
     const preference = extractAfter("Our preference:");
     const alternative = extractAfter("Alternative scenario:");
     const comment = extractAfter("Comment:");

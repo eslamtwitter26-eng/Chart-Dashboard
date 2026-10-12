@@ -1,5 +1,9 @@
 import { LayoutPicker } from "./components/LayoutPicker";
 import { resolveLayout, cellStyle, MAX_COUNT } from "./lib/layouts";
+import { DailyCard } from "./components/daily/DailyCard";
+import { DailyDetail } from "./components/daily/DailyDetail";
+import { ColorsPanel, useDailyColors, colorVars } from "./components/daily/colors";
+import type { AssetCard, EmailData } from "./components/daily/types";
 import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext } from "react";
 
 // ─── Theme context ─────────────────────────────────────────────────────────────
@@ -792,114 +796,6 @@ function CustomMode({
 
 // ─── Daily Analysis mode ──────────────────────────────────────────────────────
 
-interface AssetCard {
-  id: string;
-  assetName: string;
-  timeframe: string;
-  pivot: string;
-  watchText: string;
-  preference: string;
-  alternative: string;
-  comment: string;
-  chartUrl: string;
-  direction: "bullish" | "bearish" | "neutral";
-}
-
-interface EmailData {
-  subject: string;
-  session: string;
-  date: string;
-  receivedAt: string;
-  cards: AssetCard[];
-  fetchedAt: number;
-  cacheAge?: number;
-}
-
-function DirectionBadge({ dir }: { dir: AssetCard["direction"] }) {
-  return (
-    <span className={`direction-badge direction-badge--${dir}`}>
-      {dir === "bullish" ? "▲ BULLISH" : dir === "bearish" ? "▼ BEARISH" : "◆ NEUTRAL"}
-    </span>
-  );
-}
-
-function AnalysisCard({ card, idx }: { card: AssetCard; idx: number }) {
-  const [imgError, setImgError] = useState(false);
-  return (
-    <div
-      className={`asset-card asset-card--${card.direction}`}
-      style={{ animationDelay: `${0.04 + idx * 0.055}s` }}
-    >
-      {/* Card header */}
-      <div className="asset-card__header">
-        <div className="asset-card__identity">
-          <span className="asset-card__name">{card.assetName}</span>
-          <span className="asset-card__timeframe">
-            {card.timeframe === "Not specified" ? "Timeframe not specified" : `${card.timeframe} timeframe`}
-          </span>
-        </div>
-        <DirectionBadge dir={card.direction} />
-      </div>
-
-      {/* Accent bar */}
-      <div className={`asset-card__accent asset-card__accent--${card.direction}`} />
-
-      {/* Chart image */}
-      {card.chartUrl && !imgError ? (
-        <div className="asset-card__chart-wrap">
-          <img
-            className="asset-card__chart"
-            src={card.chartUrl}
-            alt={`${card.assetName} chart`}
-            onError={() => setImgError(true)}
-          />
-        </div>
-      ) : (
-        <div className="asset-card__chart-placeholder">
-          <span style={{ fontSize: 28, opacity: 0.3 }}>📈</span>
-        </div>
-      )}
-
-      {/* Key price level from the email */}
-      {card.watchText && (
-        <div className="asset-card__watch">{card.watchText}</div>
-      )}
-
-      {/* Analysis body */}
-      <div className="asset-card__body">
-        {card.pivot && (
-          <div className="asset-card__field">
-            <div className="asset-card__field-label">Pivot</div>
-            <div className="asset-card__pivot">{card.pivot}</div>
-          </div>
-        )}
-
-        <div className="asset-card__divider" />
-
-        {card.preference && (
-          <div className="asset-card__field">
-            <div className="asset-card__field-label">Our Preference</div>
-            <div className="asset-card__field-value">{card.preference}</div>
-          </div>
-        )}
-
-        {card.alternative && (
-          <div className="asset-card__field">
-            <div className="asset-card__field-label">Alternative Scenario</div>
-            <div className="asset-card__field-value asset-card__field-value--alt">{card.alternative}</div>
-          </div>
-        )}
-
-        {card.comment && (
-          <div className="asset-card__field">
-            <div className="asset-card__field-label">Comment</div>
-            <div className="asset-card__field-value asset-card__field-value--comment">{card.comment}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
   const [data, setData]           = useState<EmailData | null>(null);
@@ -907,6 +803,8 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const { colors, setColors, reset } = useDailyColors();
+  const [detail, setDetail] = useState<{ card: AssetCard; el: HTMLElement } | null>(null);
 
   const doFetch = useCallback(async (force = false) => {
     if (force) setRefreshing(true); else setLoading(true);
@@ -947,7 +845,7 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
   const isBusy = loading || refreshing;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="daily-analysis" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Toolbar */}
       <div className="toolbar">
         <div className="logo">DAILY ANALYSIS</div>
@@ -971,6 +869,7 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
           </span>
         )}
 
+        <ColorsPanel colors={colors} setColors={setColors} reset={reset} />
         <button
           className={`toolbar-icon-btn${refreshing ? " toolbar-icon-btn--spin" : ""}`}
           onClick={() => doFetch(true)}
@@ -1015,13 +914,16 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
         )}
 
         {!loading && !error && data && data.cards.length > 0 && (
-          <div className={`analysis-grid${refreshing ? " analysis-grid--refreshing" : ""}`}>
+          <div className={`analysis-grid${refreshing ? " analysis-grid--refreshing" : ""}`} style={colorVars(colors)}>
             {data.cards.map((card, i) => (
-              <AnalysisCard key={card.id} card={card} idx={i} />
+              <DailyCard key={card.id} card={card} idx={i} onExpand={(c, el) => setDetail({ card: c, el })} />
             ))}
           </div>
         )}
       </div>
+      {detail && data && (
+        <DailyDetail card={detail.card} meta={data} style={colorVars(colors)} returnTo={detail.el} onClose={() => setDetail(null)} />
+      )}
     </div>
   );
 }
