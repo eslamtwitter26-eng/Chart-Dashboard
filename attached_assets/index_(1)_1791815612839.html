@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>شارت الذهب المباشر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Reem+Kufi:wght@600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+/* Layout: terminal-style full-height page. Header with live price, a timeframe strip (month to 1 minute), then the chart filling the rest. */
+:root {
+  --bg: #0e0d0a;
+  --panel: #15130e;
+  --line: #2a261b;
+  --fg: #ece6d4;
+  --mute: #8f8873;
+  --gold: #d9a93a;
+  --gold-soft: rgba(217, 169, 58, 0.14);
+  --up: #3fb68b;
+  --down: #e5604d;
+  --font-ui: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --font-display: "Reem Kufi", "IBM Plex Sans Arabic", Tahoma, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 12px;
+  overflow-x: hidden;
+}
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 12px;
+  max-width: 1600px;
+  margin-inline: auto;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* header */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+.title-block { min-width: 0; }
+.title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--gold);
+  margin: 0;
+  line-height: 1.2;
+}
+.sub { color: var(--mute); font-size: 12px; margin-top: 2px; }
+.price-block { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; direction: ltr; }
+.price {
+  font-family: var(--font-num);
+  font-weight: 600;
+  font-size: 40px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.25s;
+}
+.price.up { color: var(--up); }
+.price.down { color: var(--down); }
+.chg {
+  font-family: var(--font-num);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.chg.up { color: var(--up); }
+.chg.down { color: var(--down); }
+.stats { display: flex; gap: 20px; flex-wrap: wrap; }
+.stat { display: flex; flex-direction: column; gap: 0; }
+.stat span:first-child { color: var(--mute); font-size: 11px; letter-spacing: 0.02em; }
+.stat span:last-child { font-family: var(--font-num); font-size: 13px; font-variant-numeric: tabular-nums; direction: ltr; text-align: right; }
+
+/* toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-block: 1px solid var(--line);
+  padding-block: 6px;
+  min-width: 0;
+}
+.tfs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.tfs::-webkit-scrollbar { display: none; }
+.tf, .type-btn {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--mute);
+  white-space: nowrap;
+  font-weight: 500;
+  border-radius: 4px 4px 0 0;
+}
+.tf:hover, .type-btn:hover { color: var(--fg); background: var(--panel); }
+.tf[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); background: var(--gold-soft); }
+.types { display: flex; gap: 2px; flex: none; }
+.type-btn[aria-pressed="true"] { color: var(--fg); background: var(--panel); border-bottom-color: var(--line); }
+
+/* chart */
+.chart-wrap {
+  position: relative;
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+#chart { position: absolute; inset: 0; direction: ltr; }
+.legend {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 3;
+  direction: ltr;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--mute);
+  pointer-events: none;
+  max-width: calc(100% - 20px);
+}
+.legend b { font-weight: 500; color: var(--fg); }
+.legend .up { color: var(--up); }
+.legend .down { color: var(--down); }
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  background: rgba(14, 13, 10, 0.72);
+  text-align: center;
+  padding: 24px;
+}
+.overlay[hidden] { display: none; }
+.overlay p { margin: 0 0 12px; max-width: 34ch; }
+.retry {
+  background: var(--gold);
+  color: #1a1407;
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+[hidden] { display: none !important; }
+.tools { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ict-btn { font-family: var(--font-num); font-weight: 600; letter-spacing: 0.04em; }
+.ict-btn[aria-pressed="true"] { color: #1a1407; background: var(--gold); border-bottom-color: var(--gold); }
+.ictbar { display: flex; flex-direction: column; gap: 6px; padding-bottom: 2px; min-width: 0; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  border: 1px solid var(--line); background: var(--panel); color: var(--mute);
+  border-radius: 999px; padding: 3px 11px; font-size: 12px; cursor: pointer; white-space: nowrap;
+  direction: ltr; font-family: var(--font-num);
+}
+.chip i { width: 9px; height: 9px; border-radius: 2px; background: var(--sw); }
+.chip[aria-pressed="true"] { color: var(--fg); border-color: var(--sw); }
+.chip[aria-pressed="false"] i { opacity: 0.3; }
+.ictsum { font-size: 12.5px; color: var(--fg); line-height: 1.6; }
+.ictsum .note { color: var(--mute); font-size: 11px; display: block; }
+#ict { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+
+/* footer */
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  color: var(--mute);
+  font-size: 11.5px;
+}
+.status { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mute); }
+.status[data-s="live"] .dot { background: var(--up); animation: pulse 1.6s ease-out infinite; }
+.status[data-s="loading"] .dot { background: var(--gold); }
+.status[data-s="off"] .dot { background: var(--down); }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(63, 182, 139, 0.55); }
+  100% { box-shadow: 0 0 0 8px rgba(63, 182, 139, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status[data-s="live"] .dot { animation: none; }
+  .price { transition: none; }
+}
+@media (max-width: 560px) {
+  .price { font-size: 32px; }
+  .title { font-size: 19px; }
+  .stats { gap: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="head">
+    <div class="title-block">
+      <h1 class="title">الذهب · XAU/USD</h1>
+      <div class="sub">سعر الأونصة بالدولار الأمريكي</div>
+    </div>
+    <div class="price-block">
+      <span class="price" id="price">--</span>
+      <span class="chg" id="chg">--</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>أعلى 24 ساعة</span><span id="hi">--</span></div>
+      <div class="stat"><span>أدنى 24 ساعة</span><span id="lo">--</span></div>
+      <div class="stat"><span>افتتاح 24 ساعة</span><span id="op">--</span></div>
+    </div>
+  </header>
+
+  <div class="tools">
+    <div class="toolbar">
+      <div class="tfs" id="tfs" role="tablist" aria-label="الإطار الزمني"></div>
+      <div class="types" role="group" aria-label="نوع الشارت">
+        <button class="type-btn" id="t-candle" aria-pressed="true" type="button">شموع</button>
+        <button class="type-btn" id="t-line" aria-pressed="false" type="button">خط</button>
+        <button class="type-btn ict-btn" id="t-ict" aria-pressed="false" type="button">ICT</button>
+      </div>
+    </div>
+    <div class="ictbar" id="ictbar" hidden>
+      <div class="chips" id="chips"></div>
+      <div class="ictsum" id="ictsum"></div>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <div id="chart"></div>
+    <canvas id="ict"></canvas>
+    <div class="legend" id="legend"></div>
+    <div class="overlay" id="overlay" hidden>
+      <div>
+        <p id="overlay-msg">تعذر الاتصال بمصدر الأسعار.</p>
+        <button class="retry" id="retry" type="button">إعادة المحاولة</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <span class="status" id="status" data-s="loading"><span class="dot"></span><span id="status-text">جارٍ الاتصال</span></span>
+    <span>المصدر: Binance، عقد PAXG/USDT (توكن مدعوم بالذهب الفعلي). سعره قريب جدًا من سعر الأونصة الفوري وقد يختلف عنه بفارق بسيط. الأوقات بتوقيت جهازك.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SYMBOL = "paxgusdt";
+  var REST_HOSTS = ["https://data-api.binance.vision", "https://api.binance.com"];
+  var WS_HOSTS = ["wss://data-stream.binance.vision", "wss://stream.binance.com:9443"];
+
+  // Ordered from the largest frame down to one minute.
+  var TFS = [
+    { k: "1M", l: "شهر" },
+    { k: "1w", l: "أسبوع" },
+    { k: "3d", l: "3 أيام" },
+    { k: "1d", l: "يوم" },
+    { k: "12h", l: "12 س" },
+    { k: "8h", l: "8 س" },
+    { k: "6h", l: "6 س" },
+    { k: "4h", l: "4 س" },
+    { k: "2h", l: "2 س" },
+    { k: "1h", l: "1 س" },
+    { k: "30m", l: "30 د" },
+    { k: "15m", l: "15 د" },
+    { k: "5m", l: "5 د" },
+    { k: "3m", l: "3 د" },
+    { k: "1m", l: "1 د" }
+  ];
+  var DAILY_PLUS = { "1d": 1, "3d": 1, "1w": 1, "1M": 1 };
+
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function fmt(n, d) {
+    return Number(n).toLocaleString("en-US", { minimumFractionDigits: d == null ? 2 : d, maximumFractionDigits: d == null ? 2 : d });
+  }
+
+  var tf = "1h";
+  try { var saved = localStorage.getItem("gold-tf"); if (saved && TFS.some(function (t) { return t.k === saved; })) tf = saved; } catch (e) {}
+
+  /* ---------- chart ---------- */
+  var css = getComputedStyle(document.documentElement);
+  function v(name) { return css.getPropertyValue(name).trim(); }
+  var UP = v("--up"), DOWN = v("--down"), GOLD = v("--gold");
+
+  var chart = LightweightCharts.createChart($("chart"), {
+    autoSize: true,
+    layout: { background: { type: "solid", color: v("--panel") }, textColor: v("--mute"), fontFamily: "IBM Plex Mono, monospace", fontSize: 11 },
+    grid: { vertLines: { color: "rgba(42,38,27,0.55)" }, horzLines: { color: "rgba(42,38,27,0.55)" } },
+    crosshair: { mode: 0, vertLine: { color: "#6b6451", labelBackgroundColor: "#2a261b" }, horzLine: { color: "#6b6451", labelBackgroundColor: "#2a261b" } },
+    rightPriceScale: { borderColor: v("--line"), scaleMargins: { top: 0.08, bottom: 0.2 } },
+    timeScale: {
+      borderColor: v("--line"),
+      timeVisible: true,
+      secondsVisible: false,
+      rightOffset: 6,
+      barSpacing: 9,
+      tickMarkFormatter: function (t, type) {
+        var d = new Date(t * 1000);
+        if (type === 0) return String(d.getFullYear());
+        if (type === 1) return d.getFullYear() + "-" + pad(d.getMonth() + 1);
+        if (type === 2) return pad(d.getDate()) + "/" + pad(d.getMonth() + 1);
+        return pad(d.getHours()) + ":" + pad(d.getMinutes());
+      }
+    },
+    localization: {
+      timeFormatter: function (t) {
+        var d = new Date(t * 1000);
+        var date = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+        if (DAILY_PLUS[tf]) return date;
+        return date + "  " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+      },
+      priceFormatter: function (p) { return fmt(p, 2); }
+    }
+  });
+
+  var candles = chart.addCandlestickSeries({
+    upColor: UP, downColor: DOWN, borderVisible: false, wickUpColor: UP, wickDownColor: DOWN,
+    priceFormat: { type: "price", precision: 2, minMove: 0.01 }
+  });
+  var line = chart.addAreaSeries({
+    lineColor: GOLD, topColor: "rgba(217,169,58,0.28)", bottomColor: "rgba(217,169,58,0.02)", lineWidth: 2,
+    visible: false, priceFormat: { type: "price", precision: 2, minMove: 0.01 }
+  });
+  var vol = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "vol", lastValueVisible: false, priceLineVisible: false });
+  chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
+
+  var chartType = "candle";
+  function setType(t) {
+    chartType = t;
+    candles.applyOptions({ visible: t === "candle" });
+    line.applyOptions({ visible: t === "line" });
+    $("t-candle").setAttribute("aria-pressed", String(t === "candle"));
+    $("t-line").setAttribute("aria-pressed", String(t === "line"));
+    try { localStorage.setItem("gold-type", t); } catch (e) {}
+  }
+  $("t-candle").addEventListener("click", function () { setType("candle"); });
+  $("t-line").addEventListener("click", function () { setType("line"); });
+  try { if (localStorage.getItem("gold-type") === "line") setType("line"); } catch (e) {}
+
+  /* ---------- data ---------- */
+  var bars = [];
+  var gen = 0;
+  var noMore = false;
+  var loadingMore = false;
+  var restIdx = 0;
+
+  function toBar(k) {
+    return { time: Math.floor(k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] };
+  }
+  function volPoint(b) {
+    return { time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(63,182,139,0.35)" : "rgba(229,96,77,0.35)" };
+  }
+  function paint(list) {
+    candles.setData(list.map(function (b) { return { time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }; }));
+    line.setData(list.map(function (b) { return { time: b.time, value: b.close }; }));
+    vol.setData(list.map(volPoint));
+    ictDirty = true;
+  }
+
+  function fetchKlines(interval, endTime, limit) {
+    var tries = 0;
+    function attempt() {
+      var host = REST_HOSTS[restIdx % REST_HOSTS.length];
+      var url = host + "/api/v3/klines?symbol=" + SYMBOL.toUpperCase() + "&interval=" + interval + "&limit=" + (limit || 1000) + (endTime ? "&endTime=" + endTime : "");
+      return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error("http " + r.status);
+        return r.json();
+      }).then(function (rows) {
+        if (!Array.isArray(rows)) throw new Error("bad response");
+        return rows.map(toBar);
+      }).catch(function (err) {
+        tries++;
+        restIdx++;
+        if (tries >= REST_HOSTS.length) throw err;
+        return attempt();
+      });
+    }
+    return attempt();
+  }
+
+  function loadMore() {
+    if (loadingMore || noMore || !bars.length) return;
+    loadingMore = true;
+    var myGen = gen;
+    var first = bars[0].time;
+    fetchKlines(tf, first * 1000 - 1).then(function (older) {
+      if (myGen !== gen) return;
+      if (!older.length) { noMore = true; return; }
+      var range = chart.timeScale().getVisibleLogicalRange();
+      bars = older.concat(bars);
+      paint(bars);
+      if (range) chart.timeScale().setVisibleLogicalRange({ from: range.from + older.length, to: range.to + older.length });
+      if (older.length < 1000) noMore = true;
+    }).catch(function () {}).then(function () { loadingMore = false; });
+  }
+  chart.timeScale().subscribeVisibleLogicalRangeChange(function (r) {
+    if (r && r.from < 40) loadMore();
+  });
+
+  /* ---------- legend ---------- */
+  function setLegend(b) {
+    if (!b) { $("legend").innerHTML = ""; return; }
+    var ch = b.close - b.open;
+    var pct = b.open ? (ch / b.open) * 100 : 0;
+    var cls = ch >= 0 ? "up" : "down";
+    $("legend").innerHTML =
+      "<span>O <b>" + fmt(b.open) + "</b></span>" +
+      "<span>H <b>" + fmt(b.high) + "</b></span>" +
+      "<span>L <b>" + fmt(b.low) + "</b></span>" +
+      "<span>C <b>" + fmt(b.close) + "</b></span>" +
+      "<span class=\"" + cls + "\">" + (ch >= 0 ? "+" : "") + fmt(ch) + " (" + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%)</span>";
+  }
+  chart.subscribeCrosshairMove(function (p) {
+    var d = p.seriesData && (p.seriesData.get(candles) || null);
+    if (d && p.time) {
+      var found = null;
+      for (var i = bars.length - 1; i >= 0; i--) { if (bars[i].time === p.time) { found = bars[i]; break; } }
+      setLegend(found || { open: d.open, high: d.high, low: d.low, close: d.close });
+    } else {
+      setLegend(bars[bars.length - 1]);
+    }
+  });
+
+  /* ---------- status ---------- */
+  function setStatus(s, text) {
+    $("status").setAttribute("data-s", s);
+    $("status-text").textContent = text;
+  }
+
+  /* ---------- live stream ---------- */
+  var ws = null;
+  var wsIdx = 0;
+  var retryTimer = null;
+  var watchdog = null;
+  var lastPrice = null;
+  var backoff = 1500;
+
+  function closeWS() {
+    clearTimeout(retryTimer);
+    clearInterval(watchdog);
+    if (ws) {
+      ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
+      try { ws.close(); } catch (e) {}
+      ws = null;
+    }
+  }
+
+  function applyKline(k) {
+    var b = { time: Math.floor(k.t / 1000), open: +k.o, high: +k.h, low: +k.l, close: +k.c, volume: +k.v };
+    var last = bars[bars.length - 1];
+    if (last && b.time < last.time) return;
+    try {
+      candles.update({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close });
+      line.update({ time: b.time, value: b.close });
+      vol.update(volPoint(b));
+    } catch (e) { return; }
+    if (last && last.time === b.time) bars[bars.length - 1] = b; else bars.push(b);
+    ictDirty = true;
+    if (!document.querySelector(".chart-wrap:hover")) setLegend(b);
+  }
+
+  function setPrice(p) {
+    var el = $("price");
+    if (lastPrice != null && p !== lastPrice) {
+      el.classList.remove("up", "down");
+      el.classList.add(p > lastPrice ? "up" : "down");
+    }
+    lastPrice = p;
+    el.textContent = fmt(p);
+    document.title = fmt(p) + " · الذهب";
+  }
+
+  function applyTicker(t) {
+    var chgv = +t.p, pct = +t.P;
+    var el = $("chg");
+    el.textContent = (chgv >= 0 ? "+" : "") + fmt(chgv) + "  (" + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%)";
+    el.classList.remove("up", "down");
+    el.classList.add(chgv >= 0 ? "up" : "down");
+    $("hi").textContent = fmt(t.h);
+    $("lo").textContent = fmt(t.l);
+    $("op").textContent = fmt(t.o);
+  }
+
+  function openWS(myGen) {
+    closeWS();
+    var host = WS_HOSTS[wsIdx % WS_HOSTS.length];
+    var streams = [SYMBOL + "@kline_" + tf, SYMBOL + "@aggTrade", SYMBOL + "@ticker"].join("/");
+    var sock;
+    try { sock = new WebSocket(host + "/stream?streams=" + streams); } catch (e) { scheduleReconnect(myGen); return; }
+    ws = sock;
+    var lastMsg = Date.now();
+
+    sock.onopen = function () { backoff = 1500; setStatus("live", "مباشر"); };
+    sock.onmessage = function (ev) {
+      lastMsg = Date.now();
+      var m;
+      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      var d = m.data;
+      if (!d) return;
+      if (d.e === "kline") applyKline(d.k);
+      else if (d.e === "aggTrade") setPrice(+d.p);
+      else if (d.e === "24hrTicker") applyTicker(d);
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () { if (myGen === gen) scheduleReconnect(myGen); };
+
+    watchdog = setInterval(function () {
+      if (Date.now() - lastMsg > 20000 && ws === sock) { try { sock.close(); } catch (e) {} }
+    }, 5000);
+  }
+
+  function scheduleReconnect(myGen) {
+    if (myGen !== gen) return;
+    clearInterval(watchdog);
+    setStatus("off", "انقطع الاتصال، تتم إعادة المحاولة");
+    wsIdx++;
+    retryTimer = setTimeout(function () { if (myGen === gen) loadTF(tf, true); }, backoff);
+    backoff = Math.min(backoff * 1.7, 15000);
+  }
+
+  /* ---------- load a timeframe ---------- */
+  function loadTF(next, silent) {
+    tf = next;
+    try { localStorage.setItem("gold-tf", tf); } catch (e) {}
+    gen++;
+    var myGen = gen;
+    closeWS();
+    noMore = false;
+    loadingMore = false;
+    $("overlay").hidden = true;
+    setStatus("loading", "جارٍ التحميل");
+    document.querySelectorAll(".tf").forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === tf)); });
+
+    fetchKlines(tf).then(function (list) {
+      if (myGen !== gen) return;
+      bars = list;
+      paint(bars);
+      chart.timeScale().fitContent();
+      var shown = Math.min(bars.length, 150);
+      if (bars.length > shown) chart.timeScale().setVisibleLogicalRange({ from: bars.length - shown, to: bars.length + 6 });
+      setLegend(bars[bars.length - 1]);
+      if (lastPrice == null && bars.length) setPrice(bars[bars.length - 1].close);
+      openWS(myGen);
+    }).catch(function (err) {
+      if (myGen !== gen) return;
+      setStatus("off", "غير متصل");
+      if (silent) { scheduleReconnect(myGen); return; }
+      $("overlay-msg").innerHTML =
+        "تعذر الاتصال بمصدر الأسعار.<br><br>" +
+        "إذا فتحت الملف من داخل تطبيق Claude أو من معاينة الملفات، فالمعاينة تمنع الاتصال الخارجي. " +
+        "احفظ الملف وافتحه بمتصفح عادي مثل Chrome أو Safari.<br><br>" +
+        "وإذا كنت في متصفح عادي، فغالبًا Binance محجوب على شبكتك. جرّب شبكة أخرى أو VPN." +
+        "<br><small style=\"color:var(--mute);direction:ltr;display:block;margin-top:10px\">" + String(err && err.message || err) + "</small>";
+      $("overlay").hidden = false;
+    });
+  }
+
+  /* ---------- ICT ---------- */
+  var LAYERS = [
+    { k: "str", l: "BOS / CHoCH", c: "#f08a4b" },
+    { k: "ob", l: "Order Block", c: "#3fb68b" },
+    { k: "fvg", l: "FVG", c: "#5aa9e6" },
+    { k: "liq", l: "Liquidity", c: "#e0b84f" },
+    { k: "pd", l: "Premium / Discount", c: "#e5604d" },
+    { k: "ote", l: "OTE", c: "#d9a93a" },
+    { k: "lvl", l: "PDH / PWH", c: "#9aa4b2" }
+  ];
+  var layerOn = { str: true, ob: true, fvg: true, liq: true, pd: true, ote: true, lvl: true };
+  try {
+    var savedLy = JSON.parse(localStorage.getItem("gold-ict-layers") || "null");
+    if (savedLy) for (var lk in layerOn) if (typeof savedLy[lk] === "boolean") layerOn[lk] = savedLy[lk];
+  } catch (e) {}
+  var ictOn = false, model = null, ictDirty = true, lastCompute = 0, raf = 0;
+  var htf = { at: 0, d: null, w: null };
+  var cv = $("ict"), cx = cv.getContext("2d");
+
+  /*ICT-COMPUTE-START*/
+  function computeICT(all) {
+    var b = all.length > 500 ? all.slice(all.length - 500) : all;
+    var n = b.length;
+    if (n < 25) return null;
+    var L = n < 80 ? 2 : 3;
+    var i, k, j;
+
+    // ATR (Wilder, 14)
+    var atr = 0;
+    for (i = 1; i < n; i++) {
+      var tr = Math.max(b[i].high - b[i].low, Math.abs(b[i].high - b[i - 1].close), Math.abs(b[i].low - b[i - 1].close));
+      atr = i <= 14 ? atr + tr / 14 : (atr * 13 + tr) / 14;
+    }
+
+    // swing highs / lows (fractals)
+    var sw = [];
+    for (i = L; i < n - L; i++) {
+      var isH = true, isL = true;
+      for (k = 1; k <= L; k++) {
+        if (!(b[i].high >= b[i - k].high && b[i].high > b[i + k].high)) isH = false;
+        if (!(b[i].low <= b[i - k].low && b[i].low < b[i + k].low)) isL = false;
+      }
+      if (isH) sw.push({ i: i, type: "H", price: b[i].high, time: b[i].time });
+      if (isL) sw.push({ i: i, type: "L", price: b[i].low, time: b[i].time });
+    }
+
+    // market structure (BOS / CHoCH) and the order blocks behind each break
+    var trend = 0, lastH = null, lastL = null, si = 0, events = [], obs = [];
+    for (j = 0; j < n; j++) {
+      while (si < sw.length && sw[si].i + L <= j) {
+        var s = sw[si++];
+        var o = { i: s.i, price: s.price, time: s.time, broken: false };
+        if (s.type === "H") lastH = o; else lastL = o;
+      }
+      var c = b[j].close, best = -1, from;
+      if (lastH && !lastH.broken && c > lastH.price) {
+        lastH.broken = true;
+        events.push({ kind: trend === -1 ? "CHoCH" : "BOS", dir: 1, t1: lastH.time, t2: b[j].time, price: lastH.price });
+        trend = 1;
+        from = lastL ? lastL.i : Math.max(0, lastH.i - 8);
+        for (k = from; k < j; k++) if (b[k].close < b[k].open && (best < 0 || b[k].low <= b[best].low)) best = k;
+        if (best >= 0) obs.push({ dir: 1, i: best, time: b[best].time, top: b[best].high, bottom: b[best].low });
+      } else if (lastL && !lastL.broken && c < lastL.price) {
+        lastL.broken = true;
+        events.push({ kind: trend === 1 ? "CHoCH" : "BOS", dir: -1, t1: lastL.time, t2: b[j].time, price: lastL.price });
+        trend = -1;
+        from = lastH ? lastH.i : Math.max(0, lastL.i - 8);
+        for (k = from; k < j; k++) if (b[k].close > b[k].open && (best < 0 || b[k].high >= b[best].high)) best = k;
+        if (best >= 0) obs.push({ dir: -1, i: best, time: b[best].time, top: b[best].high, bottom: b[best].low });
+      }
+    }
+
+    // keep order blocks that price has not closed through yet
+    var seen = {}, liveOB = [];
+    obs.forEach(function (ob) {
+      if (seen[ob.i]) return;
+      seen[ob.i] = true;
+      for (var m = ob.i + 1; m < n; m++) {
+        if (ob.dir === 1 ? b[m].close < ob.bottom : b[m].close > ob.top) return;
+      }
+      liveOB.push(ob);
+    });
+    var obUp = liveOB.filter(function (x) { return x.dir === 1; }).slice(-3);
+    var obDn = liveOB.filter(function (x) { return x.dir === -1; }).slice(-3);
+
+    // fair value gaps that have not been fully traded through
+    var minGap = Math.max(atr * 0.2, 0.0001), fvgs = [];
+    for (i = 2; i < n; i++) {
+      var g = null;
+      if (b[i].low - b[i - 2].high >= minGap) g = { dir: 1, time: b[i - 1].time, top: b[i].low, bottom: b[i - 2].high, i: i };
+      else if (b[i - 2].low - b[i].high >= minGap) g = { dir: -1, time: b[i - 1].time, top: b[i - 2].low, bottom: b[i].high, i: i };
+      if (!g) continue;
+      var filled = false;
+      for (k = i + 1; k < n; k++) {
+        if (g.dir === 1 ? b[k].low <= g.bottom : b[k].high >= g.top) { filled = true; break; }
+      }
+      if (!filled) fvgs.push(g);
+    }
+    fvgs = fvgs.slice(-6);
+
+    // liquidity: swing highs / lows that were never swept (equal ones are EQH / EQL)
+    var price = b[n - 1].close, tol = atr * 0.15, liq = [];
+    function swept(s) {
+      for (var q = s.i + 1; q < n; q++) if (s.type === "H" ? b[q].high > s.price : b[q].low < s.price) return true;
+      return false;
+    }
+    var hs = sw.filter(function (s) { return s.type === "H" && s.price > price && !swept(s); }).sort(function (a, c2) { return a.price - c2.price; });
+    var ls = sw.filter(function (s) { return s.type === "L" && s.price < price && !swept(s); }).sort(function (a, c2) { return c2.price - a.price; });
+    function addLiq(list, side) {
+      var out = [];
+      list.forEach(function (s) {
+        for (var q = 0; q < out.length; q++) {
+          if (Math.abs(out[q].price - s.price) <= tol) { out[q].eq = true; return; }
+        }
+        if (out.length < 3) out.push({ side: side, price: s.price, time: s.time, eq: false });
+      });
+      return out;
+    }
+    liq = addLiq(hs, "BSL").concat(addLiq(ls, "SSL"));
+
+    // dealing range: premium / discount / equilibrium and OTE
+    var pd = null;
+    if (lastH && lastL) {
+      var bull = lastL.i < lastH.i, hi = lastH.price, lo = lastL.price;
+      if (bull) { for (k = lastH.i + 1; k < n; k++) hi = Math.max(hi, b[k].high); }
+      else { for (k = lastL.i + 1; k < n; k++) lo = Math.min(lo, b[k].low); }
+      var r = hi - lo;
+      if (r > atr * 1.5) {
+        pd = {
+          hi: hi, lo: lo, eq: (hi + lo) / 2, bull: bull,
+          t0: Math.min(lastH.time, lastL.time), tEnd: bull ? lastH.time : lastL.time,
+          ote: bull ? { top: hi - 0.62 * r, bottom: hi - 0.79 * r } : { bottom: lo + 0.62 * r, top: lo + 0.79 * r }
+        };
+      }
+    }
+
+    return { trend: trend, events: events.slice(-6), ob: obUp.concat(obDn), fvg: fvgs, liq: liq, pd: pd, price: price };
+  }
+  /*ICT-COMPUTE-END*/
+
+  function loadLevels() {
+    if (htf.d && Date.now() - htf.at < 300000) return;
+    Promise.all([fetchKlines("1d", null, 3), fetchKlines("1w", null, 3)]).then(function (r) {
+      function prev(a) { return a.length >= 2 ? a[a.length - 2] : null; }
+      htf = { at: Date.now(), d: prev(r[0]), w: prev(r[1]) };
+    }).catch(function () {});
+  }
+
+  function sizeCanvas() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+    }
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w: w, h: h };
+  }
+
+  function drawICT() {
+    var sz = sizeCanvas(), w = sz.w, h = sz.h;
+    cx.clearRect(0, 0, w, h);
+    if (!ictOn || !model) return;
+    var psw = 56, tsh = 26;
+    try { psw = chart.priceScale("right").width() || 56; tsh = chart.timeScale().height() || 26; } catch (e) {}
+    var R = w - psw, B = h - tsh;
+    var ref = chartType === "line" ? line : candles;
+    var ts = chart.timeScale();
+    var m = model, ly = layerOn;
+
+    cx.save();
+    cx.beginPath();
+    cx.rect(0, 0, R, B);
+    cx.clip();
+    cx.font = "500 11px IBM Plex Mono, monospace";
+    cx.direction = "ltr";
+
+    function X(t) { var x = ts.timeToCoordinate(t); return x == null ? 0 : x; }
+    function Y(p) { return ref.priceToCoordinate(p); }
+    function label(txt, x, y, color, align) { cx.fillStyle = color; cx.textAlign = align || "left"; cx.fillText(txt, x, y); }
+    function box(t, top, bottom, fill, stroke, txt, ce) {
+      var x0 = Math.max(0, X(t));
+      if (x0 >= R - 4) return;
+      var y1 = Y(top), y2 = Y(bottom);
+      if (y1 == null || y2 == null) return;
+      var yt = Math.min(y1, y2), yb = Math.max(y1, y2);
+      if (yb < 0 || yt > B) return;
+      if (yb - yt < 2) yb = yt + 2;
+      cx.fillStyle = fill;
+      cx.fillRect(x0, yt, R - x0, yb - yt);
+      cx.strokeStyle = stroke;
+      cx.lineWidth = 1;
+      cx.strokeRect(x0 + 0.5, yt + 0.5, R - x0 - 1, yb - yt - 1);
+      if (ce) {
+        var ym = Math.round((yt + yb) / 2) + 0.5;
+        cx.setLineDash([3, 3]);
+        cx.beginPath(); cx.moveTo(x0, ym); cx.lineTo(R, ym); cx.stroke();
+        cx.setLineDash([]);
+      }
+      if (txt) label(txt, x0 + 4, Math.min(Math.max(yt + 11, 11), B - 3), stroke, "left");
+    }
+    function hline(price, t, color, dash, txt) {
+      var y = Y(price);
+      if (y == null || y < 0 || y > B) return;
+      var x0 = t == null ? 0 : Math.max(0, X(t));
+      if (x0 >= R) return;
+      var yy = Math.round(y) + 0.5;
+      cx.strokeStyle = color; cx.lineWidth = 1; cx.setLineDash(dash);
+      cx.beginPath(); cx.moveTo(x0, yy); cx.lineTo(R, yy); cx.stroke();
+      cx.setLineDash([]);
+      if (txt) label(txt, R - 4, y - 4, color, "right");
+    }
+
+    if (m.pd) {
+      var p = m.pd;
+      if (ly.pd) {
+        box(p.t0, p.hi, p.eq, "rgba(229,96,77,0.07)", "rgba(229,96,77,0)", "");
+        box(p.t0, p.eq, p.lo, "rgba(63,182,139,0.07)", "rgba(63,182,139,0)", "");
+        hline(p.eq, p.t0, "#8f8873", [5, 4], "EQ 50%");
+        var xl = Math.max(4, X(p.t0) + 4), yh = Y(p.hi), yl = Y(p.lo);
+        if (yh != null && yh > 10 && yh < B) label("Premium", xl, yh + 12, "rgba(229,96,77,0.9)");
+        if (yl != null && yl > 10 && yl < B) label("Discount", xl, yl - 5, "rgba(63,182,139,0.9)");
+      }
+      if (ly.ote) box(p.tEnd, p.ote.top, p.ote.bottom, "rgba(217,169,58,0.16)", "#d9a93a", "OTE 62-79%");
+    }
+    if (ly.fvg) m.fvg.forEach(function (f) {
+      if (f.dir === 1) box(f.time, f.top, f.bottom, "rgba(90,169,230,0.17)", "#5aa9e6", "Bull FVG", true);
+      else box(f.time, f.top, f.bottom, "rgba(192,132,252,0.17)", "#c084fc", "Bear FVG", true);
+    });
+    if (ly.ob) m.ob.forEach(function (o) {
+      if (o.dir === 1) box(o.time, o.top, o.bottom, "rgba(63,182,139,0.2)", "#3fb68b", "Bullish OB");
+      else box(o.time, o.top, o.bottom, "rgba(229,96,77,0.2)", "#e5604d", "Bearish OB");
+    });
+    if (ly.lvl) {
+      if (htf.d) { hline(htf.d.high, null, "#9aa4b2", [2, 3], "PDH"); hline(htf.d.low, null, "#9aa4b2", [2, 3], "PDL"); }
+      if (htf.w) { hline(htf.w.high, null, "#9aa4b2", [2, 3], "PWH"); hline(htf.w.low, null, "#9aa4b2", [2, 3], "PWL"); }
+    }
+    if (ly.liq) m.liq.forEach(function (q) {
+      var name = q.eq ? (q.side === "BSL" ? "EQH" : "EQL") : q.side;
+      hline(q.price, q.time, "#e0b84f", [7, 4], name + "  " + fmt(q.price));
+    });
+    if (ly.str) m.events.forEach(function (e) {
+      var y = Y(e.price);
+      if (y == null || y < 0 || y > B) return;
+      var x1 = X(e.t1), x2 = X(e.t2);
+      if (x2 < 0 || x1 > R) return;
+      var col = e.kind === "CHoCH" ? "#f08a4b" : "#cfc8b4";
+      var yy = Math.round(y) + 0.5;
+      cx.strokeStyle = col; cx.lineWidth = 1; cx.setLineDash([4, 3]);
+      cx.beginPath(); cx.moveTo(Math.max(0, x1), yy); cx.lineTo(Math.max(0, x2), yy); cx.stroke();
+      cx.setLineDash([]);
+      label(e.kind, (Math.max(0, x1) + Math.max(0, x2)) / 2, e.dir === 1 ? y - 4 : y + 12, col, "center");
+    });
+    cx.restore();
+  }
+
+  function updateSummary() {
+    var el = $("ictsum");
+    var note = "<span class=\"note\">تحليل آلي تعليمي مبني على الشموع المعروضة، وليس توصية بالشراء أو البيع.</span>";
+    if (!model) { el.innerHTML = "لا توجد شموع كافية لتحليل ICT في هذا الإطار." + note; return; }
+    var m = model, parts = [];
+    parts.push("هيكل السوق: <b>" + (m.trend === 1 ? "صاعد" : m.trend === -1 ? "هابط" : "غير واضح") + "</b>");
+    if (m.events.length) {
+      var e = m.events[m.events.length - 1];
+      parts.push("آخر كسر: <b>" + e.kind + (e.dir === 1 ? " صاعد" : " هابط") + "</b>");
+    }
+    if (m.pd) parts.push("السعر في <b>" + (m.price > m.pd.eq ? "Premium" : "Discount") + "</b>");
+    var up = m.liq.filter(function (q) { return q.side === "BSL"; })[0];
+    var dn = m.liq.filter(function (q) { return q.side === "SSL"; })[0];
+    if (up) parts.push("أقرب BSL: <b dir=\"ltr\">" + fmt(up.price) + "</b>");
+    if (dn) parts.push("أقرب SSL: <b dir=\"ltr\">" + fmt(dn.price) + "</b>");
+    el.innerHTML = parts.join("  ·  ") + note;
+  }
+
+  function ictFrame(now) {
+    if (!ictOn) return;
+    if (ictDirty && now - lastCompute > 700) {
+      ictDirty = false;
+      lastCompute = now;
+      try { model = computeICT(bars); } catch (e) { model = null; }
+      updateSummary();
+    }
+    drawICT();
+    raf = requestAnimationFrame(ictFrame);
+  }
+
+  function setICT(on) {
+    ictOn = on;
+    $("t-ict").setAttribute("aria-pressed", String(on));
+    $("ictbar").hidden = !on;
+    cancelAnimationFrame(raf);
+    if (on) {
+      ictDirty = true;
+      lastCompute = 0;
+      loadLevels();
+      raf = requestAnimationFrame(ictFrame);
+    } else {
+      cx.clearRect(0, 0, cv.width, cv.height);
+    }
+  }
+  $("t-ict").addEventListener("click", function () { setICT(!ictOn); });
+
+  LAYERS.forEach(function (l) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.style.setProperty("--sw", l.c);
+    b.setAttribute("aria-pressed", String(layerOn[l.k]));
+    b.innerHTML = "<i></i>" + l.l;
+    b.addEventListener("click", function () {
+      layerOn[l.k] = !layerOn[l.k];
+      b.setAttribute("aria-pressed", String(layerOn[l.k]));
+      try { localStorage.setItem("gold-ict-layers", JSON.stringify(layerOn)); } catch (e) {}
+    });
+    $("chips").appendChild(b);
+  });
+
+  /* ---------- toolbar ---------- */
+  var bar = $("tfs");
+  TFS.forEach(function (t) {
+    var b = document.createElement("button");
+    b.className = "tf";
+    b.type = "button";
+    b.textContent = t.l;
+    b.dataset.k = t.k;
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(t.k === tf));
+    b.addEventListener("click", function () { if (t.k !== tf) loadTF(t.k); });
+    bar.appendChild(b);
+  });
+  $("retry").addEventListener("click", function () { backoff = 1500; loadTF(tf); });
+
+  loadTF(tf);
+})();
+</script>
+</body>
+</html>

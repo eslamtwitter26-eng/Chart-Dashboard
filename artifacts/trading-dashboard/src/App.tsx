@@ -5,7 +5,7 @@ import { normalizeIndicators, type IndicatorId } from "./lib/indicators";
 import { tradingViewUrl } from "./lib/tradingview";
 import { normalizeChartType, type ChartType } from "./lib/chart-type";
 import { resolveLayout, cellStyle, MAX_COUNT } from "./lib/layouts";
-import { GoldLab } from "./components/gold/GoldLab";
+import { UploadedGoldLab as GoldLab } from "./components/gold/UploadedGoldLab";
 import { DailyCard } from "./components/daily/DailyCard";
 import { DailyDetail } from "./components/daily/DailyDetail";
 import { ColorsPanel, useDailyColors, colorVars } from "./components/daily/colors";
