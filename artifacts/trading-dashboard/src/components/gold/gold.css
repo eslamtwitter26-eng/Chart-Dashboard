@@ -26,3 +26,11 @@
 .gl-lv{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-top:1px solid hsl(var(--border));align-items:center}
 .gl-chip{display:flex;gap:6px;align-items:center;padding:2px 4px 2px 8px;border-radius:12px;border:1px solid hsl(var(--border2));direction:ltr}
 .gl-tools{position:absolute;top:6px;left:6px;z-index:4;display:flex;gap:4px}
+.gl-countdown{position:absolute;z-index:3;pointer-events:none;padding:1px 5px;border-radius:3px;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;background:hsl(var(--bg3)/.92);color:hsl(var(--text));border:1px solid hsl(var(--border2));direction:ltr;white-space:nowrap}
+.gl-countdown[data-state=expired]{color:hsl(var(--text2));font-weight:500}
+.gl-ict{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px 10px;border-bottom:1px solid hsl(var(--border))}
+.gl-ict .gl-btn{padding:3px 8px}
+.gl-ict-count{color:hsl(var(--text2));font-size:11px;margin-inline-start:4px}
+.gl-info-panel ul{margin:6px 0;padding-inline-start:18px}
+.gl-chart{touch-action:none}
+@media (max-height:500px){.gl-wrap{min-height:240px}}
