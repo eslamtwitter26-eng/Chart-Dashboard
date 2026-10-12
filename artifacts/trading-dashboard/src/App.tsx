@@ -1,3 +1,5 @@
+import { LayoutPicker } from "./components/LayoutPicker";
+import { resolveLayout, cellStyle, MAX_COUNT } from "./lib/layouts";
 import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext } from "react";
 
 // ─── Theme context ─────────────────────────────────────────────────────────────
@@ -76,6 +78,9 @@ interface SavedTemplate {
   stdSymbols?: string[];
   stdInterval?: string;
   stdCount?: number;
+  stdLayout?: string;
+  customCount?: number;
+  customLayout?: string;
   // Custom mode data
   customSlots?: CustomSlot[];
 }
@@ -429,7 +434,6 @@ function SaveDialog({ defaultName, onSave, onClose }: { defaultName: string; onS
 
 // ─── Count options ────────────────────────────────────────────────────────────
 
-const COUNT_OPTS = Array.from({ length: 12 }, (_, i) => ({ label: `${i+1} chart${i > 0 ? "s" : ""}`, value: i+1 }));
 
 // ─── Fullscreen hook ──────────────────────────────────────────────────────────
 
@@ -506,20 +510,22 @@ function StandardMode({
   const saved = load(KEY_STD, { symbols: ["TVC:GOLD","FOREXCOM:SPXUSD","FOREXCOM:NSXUSD","FX:EURUSD"], tfInterval: "D", count: 4 });
   const [symbols, setSymbols]   = useState<string[]>(saved.symbols);
   const [tf, setTf]             = useState<Timeframe>(TIMEFRAMES.find(t => t.interval === saved.tfInterval) ?? TIMEFRAMES[2]);
-  const [countOpt, setCount]    = useState(COUNT_OPTS.find(o => o.value === saved.count) ?? COUNT_OPTS[3]);
+  const [count, setCount]        = useState<number>(Math.min(MAX_COUNT, Math.max(1, Number(saved.count) || 4)));
+  const [layoutId, setLayoutId] = useState<string>((saved as { layout?: string }).layout ?? "");
   const [showSave, setShowSave] = useState(false);
   const { fsIdx, setFsIdx }     = useFullscreen();
 
-  useEffect(() => { persist(KEY_STD, { symbols, tfInterval: tf.interval, count: countOpt.value }); }, [symbols, tf, countOpt]);
+  useEffect(() => { persist(KEY_STD, { symbols, tfInterval: tf.interval, count, layout: layoutId }); }, [symbols, tf, count, layoutId]);
 
   const slots = useMemo(() =>
-    symbols.map(s => ASSETS.find(a => a.symbol === s)).filter(Boolean).slice(0, countOpt.value) as Asset[],
-    [symbols, countOpt.value]);
+    symbols.map(s => ASSETS.find(a => a.symbol === s)).filter(Boolean).slice(0, count) as Asset[],
+    [symbols, count]);
 
-  const { cols, rows } = getGrid(Math.max(1, slots.length));
+  const layout = resolveLayout(Math.max(1, slots.length), layoutId);
+  const { cols, rows } = layout;
 
   const handleSave = (name: string) => {
-    onSaveTemplate({ name, mode: "standard", stdSymbols: symbols, stdInterval: tf.interval, stdCount: countOpt.value });
+    onSaveTemplate({ name, mode: "standard", stdSymbols: symbols, stdInterval: tf.interval, stdCount: count, stdLayout: layoutId });
     setShowSave(false);
   };
 
@@ -529,7 +535,7 @@ function StandardMode({
         <div className="logo">CHARTS</div>
         <AssetDropdown selected={symbols} onChange={setSymbols} />
         <SimpleSelect label="Timeframe" options={TIMEFRAMES} value={tf} onChange={setTf} displayFn={v => v.short} />
-        <SimpleSelect label="Layout" options={COUNT_OPTS} value={countOpt} onChange={setCount} displayFn={v => v.label} />
+        <LayoutPicker count={count} layoutId={layoutId} onChange={(n, id) => { setCount(n); setLayoutId(id); }} />
         <div className="toolbar-sep" />
         <button className="toolbar-icon-btn" onClick={() => setShowSave(true)}>💾 Save</button>
         <button className="toolbar-icon-btn" onClick={onOpenTemplates}>
@@ -548,7 +554,7 @@ function StandardMode({
       ) : (
         <div className="chart-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)`, gridTemplateRows: `repeat(${rows},1fr)` }}>
           {slots.map((a, i) => (
-            <div key={`${a.symbol}-${tf.interval}`} style={{ minHeight: 0, height: "100%", cursor: "crosshair" }}
+            <div key={`${a.symbol}-${tf.interval}`} style={{ ...cellStyle(layout.cells[i]), minHeight: 0, height: "100%", cursor: "crosshair" }}
               onDoubleClick={() => setFsIdx(i)}>
               <TvChart symbol={a.symbol} interval={tf.interval} label={`${a.label} · ${tf.short}`} />
             </div>
@@ -588,7 +594,7 @@ function CustomMode({
   theme: "dark" | "light";
   onToggleTheme: () => void;
 }) {
-  const savedCustom = load<{ slots: CustomSlot[] }>(KEY_CUSTOM, {
+  const savedCustom = load<{ slots: CustomSlot[]; count?: number; layout?: string }>(KEY_CUSTOM, {
     slots: [
       { id: uid(), symbol: "TVC:GOLD",        interval: "D"   },
       { id: uid(), symbol: "FX:EURUSD",       interval: "240" },
@@ -598,6 +604,8 @@ function CustomMode({
   });
 
   const [slots, setSlots]       = useState<CustomSlot[]>(savedCustom.slots.length ? savedCustom.slots : []);
+  const [count, setCount] = useState<number>(Math.min(MAX_COUNT, Math.max(1, Number(savedCustom.count) || savedCustom.slots.length || 1)));
+  const [layoutId, setLayoutId] = useState<string>(savedCustom.layout ?? "");
   const [showSave, setShowSave] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const { fsIdx, setFsIdx }     = useFullscreen();
@@ -611,31 +619,42 @@ function CustomMode({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  useEffect(() => { persist(KEY_CUSTOM, { slots }); }, [slots]);
+  useEffect(() => { persist(KEY_CUSTOM, { slots, count, layout: layoutId }); }, [slots, count, layoutId]);
 
-  const addSlot = () => setSlots(p => [...p, { id: uid(), symbol: "TVC:GOLD", interval: "D" }]);
-  const removeSlot = (id: string) => setSlots(p => p.filter(s => s.id !== id));
+  const addSlot = () => {
+    if (count >= slots.length) setCount(Math.min(MAX_COUNT, slots.length + 1));
+    setSlots(p => [...p, { id: uid(), symbol: "TVC:GOLD", interval: "D" }]);
+  };
+  const removeSlot = (id: string) => {
+    const idx = slots.findIndex(s => s.id === id);
+    if (idx >= 0 && idx < count && count >= slots.length) setCount(c => Math.max(1, c - 1));
+    setSlots(p => p.filter(s => s.id !== id));
+  };
   const updateSlot = (id: string, patch: Partial<CustomSlot>) =>
     setSlots(p => p.map(s => s.id === id ? { ...s, ...patch } : s));
 
   const applyBulk = () => {
     if (!bulkSym || !bulkTFs.length) return;
+    if (count >= slots.length) setCount(Math.min(MAX_COUNT, slots.length + bulkTFs.length));
     setSlots(p => [...p, ...bulkTFs.map(iv => ({ id: uid(), symbol: bulkSym, interval: iv }))]);
     setShowBulk(false); setBulkTFs([]); setBulkSym("");
   };
 
   const handleSave = (name: string) => {
-    onSaveTemplate({ name, mode: "custom", customSlots: slots });
+    onSaveTemplate({ name, mode: "custom", customSlots: slots, customCount: count, customLayout: layoutId });
     setShowSave(false);
   };
 
-  const visibleSlots = slots.slice(0, 12);
-  const { cols, rows } = getGrid(Math.max(1, visibleSlots.length));
+  const visibleSlots = slots.slice(0, Math.min(count, MAX_COUNT));
+  const layout = resolveLayout(Math.max(1, visibleSlots.length), layoutId);
+  const { cols, rows } = layout;
 
   return (
     <>
       <div className="toolbar">
         <div className="logo">CHARTS</div>
+
+        <LayoutPicker count={count} layoutId={layoutId} onChange={(n, id) => { setCount(n); setLayoutId(id); }} />
 
         {/* Add one slot */}
         <button className="toolbar-action-btn" onClick={addSlot}>+ Add Chart</button>
@@ -709,7 +728,7 @@ function CustomMode({
             const assetLabel = ASSETS.find(a => a.symbol === slot.symbol)?.label ?? slot.symbol;
             const tfShort    = TIMEFRAMES.find(t => t.interval === slot.interval)?.short ?? slot.interval;
             return (
-              <div key={slot.id} style={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "hsl(var(--bg))" }}>
+              <div key={slot.id} style={{ ...cellStyle(layout.cells[i]), display: "flex", flexDirection: "column", minHeight: 0, height: "100%", background: "hsl(var(--bg))" }}>
                 {/* ── Chart header ── */}
                 <div className="chart-header">
                   <InlineSelect
@@ -1052,9 +1071,10 @@ export default function App() {
         symbols:    t.stdSymbols  ?? ["TVC:GOLD"],
         tfInterval: t.stdInterval ?? "D",
         count:      t.stdCount    ?? 4,
+        layout:     t.stdLayout   ?? "",
       });
     } else {
-      persist(KEY_CUSTOM, { slots: t.customSlots ?? [] });
+      persist(KEY_CUSTOM, { slots: t.customSlots ?? [], count: t.customCount ?? Math.min(MAX_COUNT, (t.customSlots ?? []).length || 1), layout: t.customLayout ?? "" });
     }
     persist(KEY_MODE, t.mode);
     setMode(t.mode);
