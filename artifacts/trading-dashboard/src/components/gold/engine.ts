@@ -26,7 +26,7 @@ export class GoldChartEngine {
       autoSize: false, width: el.clientWidth, height: el.clientHeight,
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: colors.text, attributionLogo: true },
       grid: { vertLines: { color: colors.grid }, horzLines: { color: colors.grid } },
-      timeScale: { timeVisible: true, borderColor: colors.grid },
+      timeScale: { timeVisible: true, borderColor: colors.grid, rightOffset: 0, fixRightEdge: true, fixLeftEdge: true },
       rightPriceScale: { borderColor: colors.grid },
     });
     this.ro = new ResizeObserver(() => this.chart.resize(el.clientWidth, el.clientHeight));
