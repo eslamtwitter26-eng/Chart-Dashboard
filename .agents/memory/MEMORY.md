@@ -3,3 +3,4 @@
 - [TradingView study verification](tradingview-study-verification.md) — verify selected indicators in the rendered widget; valid controls and encoded URLs do not prove studies load.
 - [Analysis data scope](analysis-data-scope.md) — keep existing TradingView charts intact; independent prices are approved only for the separate gold chart.
 - [Gold provider quality](gold-provider-quality.md) — gold history can have duplicate times and inconsistent OHLC; disclose omissions and never repair prices silently.
+- [Gold workspace interactions](gold-workspace-interactions.md) — keep free mobile/desktop pan alongside weekend compression; ICT replaces only Gold Lab’s local indicators.
