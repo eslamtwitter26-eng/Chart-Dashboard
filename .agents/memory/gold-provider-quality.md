@@ -14,3 +14,9 @@ The same source supplies weekend gold quotes with small, nonzero fluctuations, e
 **Why:** The user identified an extended near-horizontal weekend area and asked to remove nontrading periods from the chart. Filtering exact duplicates misses it; filtering all quiet candles would erase genuine low-volatility trading.
 
 **How to apply:** Compress the displayed time axis using an explicit, DST-aware reference weekend session, only removing bars wholly within the closure. Do not alter the provider's original OHLC, assume a universal OTC broker calendar, discard partially open aggregates, or treat quiet intraday trading as a closure. Keep the source, reference-hours disclaimer, and count of hidden candles available on request.
+
+Cached intrabar quotes must not become "confirmed closed" analysis inputs merely because the browser clock passes their scheduled closing time.
+
+**Why:** The source can be polled less frequently than a minute candle's duration. An earlier intrabar snapshot is not the final OHLC, even after that candle's time has elapsed; accepting it can create false confirmations that change on the next fetch.
+
+**How to apply:** Confirm analytical inputs against the data snapshot's fetch time (or an authoritative finalized-candle flag from a future provider). The wall clock may drive a countdown, but cannot manufacture finalized prices.

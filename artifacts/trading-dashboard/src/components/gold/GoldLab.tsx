@@ -3,7 +3,22 @@ import { useGetGoldHistory, getGetGoldHistoryQueryKey, type GetGoldHistoryParams
 import { GoldChartEngine } from "./engine";
 import { goldTradingBars } from "./sessions";
 import { INTERVALS, loadLevels, loadSettings, saveLevels, saveSettings, type GoldLevel, type GoldSettings } from "./storage";
+import { detectICT } from "./ict";
+import { candleCountdown } from "./countdown";
+import type { ICTFeature, ICTZone, ICTLine } from "./ict-types";
 import "./gold.css";
+
+const ICT_BTNS: [ICTFeature, string][] = [
+  ["fvg", "FVG"], ["orderBlock", "Order Block"], ["breaker", "Breaker"],
+  ["structure", "BOS/CHoCH"], ["liquidity", "السيولة EQH/EQL"], ["premiumDiscount", "Premium/Discount"],
+];
+const ZONE_FEATURE: Record<ICTZone["kind"], ICTFeature> = { fvg: "fvg", orderBlock: "orderBlock", breaker: "breaker", premium: "premiumDiscount", discount: "premiumDiscount" };
+const LINE_FEATURE: Record<ICTLine["kind"], ICTFeature> = { bos: "structure", choch: "structure", liquidity: "liquidity", equilibrium: "premiumDiscount" };
+function latest<T extends { kind: string; formedAt: number }>(items: T[], n: number): T[] {
+  const by = new Map<string, T[]>();
+  for (const i of items) { const a = by.get(i.kind) ?? []; a.push(i); by.set(i.kind, a); }
+  return [...by.values()].flatMap(a => a.sort((x, y) => y.formedAt - x.formedAt).slice(0, n));
+}
 
 const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const utc = (d: Date) => Number.isNaN(d.getTime()) ? "—" : d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
@@ -16,6 +31,8 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
   const host = useRef<HTMLDivElement>(null);
   const eng = useRef<GoldChartEngine | null>(null);
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   useEffect(() => saveSettings(s), [s]);
   useEffect(() => saveLevels(levels), [levels]);
 
@@ -43,8 +60,24 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
   useEffect(() => { eng.current?.setColors(colors()); }, [theme]);
   useEffect(() => {
     if (!eng.current) return;
-    eng.current.update({ bars: bars ?? [], chartType: s.chartType, sma: s.sma, ema: s.ema, rsi: s.rsi, levels }, `${s.interval}:${data?.fetchedAt ? 1 : 0}`);
-  }, [bars, data?.fetchedAt, s.chartType, s.sma, s.ema, s.rsi, s.interval, levels]);
+    eng.current.update({ bars: bars ?? [], chartType: s.chartType, levels }, `${s.interval}:${data?.fetchedAt ? 1 : 0}`);
+  }, [bars, data?.fetchedAt, s.chartType, s.interval, levels]);
+
+  // Wall-clock expiry does not finalize an old intrabar snapshot. Confirm only
+  // candles that had already closed when the provider response was fetched.
+  const snapshotTime = data ? new Date(data.fetchedAt).getTime() : 0;
+  const ict = useMemo(() => bars && bars.length ? detectICT(bars, s.interval, snapshotTime) : { zones: [], lines: [], closedBars: 0 }, [bars, s.interval, snapshotTime]);
+  const shown = useMemo(() => ({
+    zones: latest(ict.zones.filter(z => z.active && s.ict[ZONE_FEATURE[z.kind]]), 12),
+    lines: latest(ict.lines.filter(l => s.ict[LINE_FEATURE[l.kind]] && (l.kind !== "liquidity" || l.active)), 12),
+  }), [ict, s.ict]);
+  useEffect(() => { eng.current?.setICT(shown.zones, shown.lines); }, [shown, bars, s.chartType]);
+
+  const lastTime = hasBars ? bars![bars!.length - 1].time : undefined;
+  useEffect(() => {
+    const cd = candleCountdown(hasBars ? lastTime : undefined, s.interval, now);
+    eng.current?.setCountdown(cd.text, cd.state, cd.remainingSeconds);
+  }, [now, lastTime, hasBars, s.interval, bars, s.chartType]);
 
   const last = hasBars ? bars![bars!.length - 1] : undefined;
   const prev = hasBars && bars!.length > 1 ? bars![bars!.length - 2] : undefined;
@@ -58,9 +91,7 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
     setPrice("");
   };
   const set = (p: Partial<GoldSettings>) => setS(x => ({ ...x, ...p }));
-  const tog = (k: "sma" | "ema" | "rsi", label: string) => (
-    <button className={`gl-btn ${s[k] ? "on" : ""}`} data-testid={`gold-indicator-${k}`} aria-pressed={s[k]} onClick={() => set({ [k]: !s[k] })}>{label}</button>
-  );
+  const togIct = (k: ICTFeature) => setS(x => ({ ...x, ict: { ...x.ict, [k]: !x.ict[k] } }));
   const loading = q.isLoading || (q.isFetching && !data);
 
   return (
@@ -75,8 +106,15 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
           <button className={`gl-btn ${s.chartType === "candles" ? "on" : ""}`} data-testid="gold-chart-type-candles" onClick={() => set({ chartType: "candles" })}>شموع</button>
           <button className={`gl-btn ${s.chartType === "line" ? "on" : ""}`} data-testid="gold-chart-type-line" onClick={() => set({ chartType: "line" })}>خط (إغلاق)</button>
         </div>
-        <div className="gl-grp">{tog("sma", "SMA20")}{tog("ema", "EMA50")}{tog("rsi", "RSI14")}</div>
         <button className="gl-btn" data-testid="gold-refresh" disabled={q.isFetching} onClick={() => q.refetch()}>{q.isFetching ? "جارٍ التحديث..." : "تحديث"}</button>
+      </div>
+      <div className="gl-ict" data-testid="gold-ict-bar">
+        {ICT_BTNS.map(([k, l]) => (
+          <button key={k} className={`gl-btn ${s.ict[k] ? "on" : ""}`} data-testid={`gold-ict-${k}`} aria-pressed={s.ict[k]} onClick={() => togIct(k)}>{l}</button>
+        ))}
+        <span className="gl-ict-count" data-testid="gold-ict-overlay" data-zones={shown.zones.length} data-lines={shown.lines.length} data-closed={ict.closedBars}>
+          {hasBars ? (shown.zones.length + shown.lines.length ? `${shown.zones.length} مناطق · ${shown.lines.length} خطوط` : "لا إشارات مكتشفة") : ""}
+        </span>
       </div>
       {errMsg && hasBars && (
         <div className="gl-warn" data-testid="gold-error" role="alert">
@@ -103,7 +141,16 @@ export function GoldLab({ theme }: { theme: "dark" | "light" }) {
               <p>وقت الجلب: <b>{utc(new Date(data.fetchedAt))}</b></p>
               {last && <p>افتتاح آخر شمعة معروضة: <b>{utc(new Date(last.time * 1000))}</b></p>}
               <p>عدد الشموع المعروضة: <b>{bars?.length ?? 0}</b> · المخفية خلال الإغلاق: <b data-testid="gold-hidden-session-bars">{hiddenSessionBars}</b></p>
-              <p>المؤشرات تُحسب من الشموع المعروضة فقط.</p>
+              <p>قواعد ICT ميكانيكية وليست توصية أو ذكاءً اصطناعياً؛ تُحسب من الشموع التي أغلقت قبل آخر جلب للبيانات، لا من انتهاء الوقت وحده. تظهر المناطق النشطة من لحظة تأكيدها، بحد أقصى 12 لكل نوع، ولا تُرسم مناطق مملوءة أو ملغاة:</p>
+              <ul>
+                <li>FVG: فجوة ثلاث شموع مغلقة دون فجوات سعرية في السلسلة.</li>
+                <li>BOS/CHoCH: كسر بإغلاق لقمة أو قاع محوري مؤكد بشمعتين من كل جانب.</li>
+                <li>Order Block: جسم وذيل آخر شمعة معاكسة (من آخر 12) قبل اندفاع بقوة 0.6 من متوسط المدى الحقيقي لـ14.</li>
+                <li>Breaker: Order Block فشل ثم أُعيد اختباره أو رُفض لاحقاً.</li>
+                <li>السيولة: قمم أو قيعان متساوية ضمن 0.1 ATR.</li>
+                <li>Premium/Discount: نطاق آخر قمة وقاع مؤكدين؛ المنتصف خط التوازن.</li>
+                <li>يُعرض أحدث 12 عنصراً لكل ميزة. العد التنازلي يخص الشمعة الأخيرة.</li>
+              </ul>
               {data.discardedBars > 0 && <div className="gl-warn" data-testid="gold-data-quality" role="status">{data.dataQualityNote}</div>}
             </>}
           </div>
