@@ -5,8 +5,6 @@ import { normalizeIndicators, type IndicatorId } from "./lib/indicators";
 import { tradingViewUrl } from "./lib/tradingview";
 import { normalizeChartType, type ChartType } from "./lib/chart-type";
 import { resolveLayout, cellStyle, MAX_COUNT } from "./lib/layouts";
-import { PineAnalysisTools } from "./components/PineAnalysisTools";
-import type { AnalysisChart } from "./lib/pine-analysis";
 import { DailyCard } from "./components/daily/DailyCard";
 import { DailyDetail } from "./components/daily/DailyDetail";
 import { ColorsPanel, useDailyColors, colorVars } from "./components/daily/colors";
@@ -470,7 +468,6 @@ function FullscreenOverlay({
         <span style={{ fontSize: 10, color: "hsl(var(--muted))", flex: 1 }}>Double-click or press ESC to exit</span>
         <ChartTypeSelect value={chartType} onChange={onChartTypeChange} context="fullscreen" />
         <IndicatorPicker selected={indicators} onChange={onIndicatorsChange} context="fullscreen" />
-        <PineAnalysisTools charts={[{ symbol, interval, label }]} context="fullscreen" />
         <button
           onClick={onExit}
           style={{
@@ -541,7 +538,6 @@ function StandardMode({
         <SimpleSelect label="Timeframe" options={TIMEFRAMES} value={tf} onChange={setTf} displayFn={v => v.short} />
         <ChartTypeSelect value={chartType} onChange={setChartType} context="standard" />
         <IndicatorPicker selected={indicators} onChange={setIndicators} context="standard" />
-        <PineAnalysisTools charts={slots.map((a): AnalysisChart => ({ symbol: a.symbol, interval: tf.interval, label: `${a.label} · ${tf.short}` }))} context="standard" />
         <LayoutPicker count={count} layoutId={layoutId} onChange={(n, id) => { setCount(n); setLayoutId(id); }} />
         <div className="toolbar-sep" />
         <button className="toolbar-icon-btn" onClick={() => setShowSave(true)}>💾 Save</button>
@@ -722,8 +718,6 @@ function CustomMode({
           <button className="mini-btn" style={{ fontSize: 11 }} onClick={() => setSlots([])}>Clear All</button>
         )}
 
-        <PineAnalysisTools charts={visibleSlots.map((s): AnalysisChart => ({ symbol: s.symbol, interval: s.interval,
-          label: `${ASSETS.find(a => a.symbol === s.symbol)?.label ?? s.symbol} · ${TIMEFRAMES.find(t => t.interval === s.interval)?.short ?? s.interval}` }))} context="custom" />
         <div className="toolbar-sep" />
         <button className="toolbar-icon-btn" onClick={() => setShowSave(true)}>💾 Save</button>
         <button className="toolbar-icon-btn has-badge" onClick={onOpenTemplates}>
