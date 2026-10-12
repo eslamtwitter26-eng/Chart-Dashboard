@@ -1,2 +1,3 @@
 - [Gmail MIME dependency](gmail-mime-dependency.md) — keep Nodemailer installed while using Mailparser; its runtime parser imports Nodemailer address parsing.
 - [Git provider authentication](git-provider-authentication.md) — a healthy GitHub connection does not guarantee workspace Git authentication; verify transport before pushing.
+- [TradingView study verification](tradingview-study-verification.md) — verify selected indicators in the rendered widget; valid controls and encoded URLs do not prove studies load.

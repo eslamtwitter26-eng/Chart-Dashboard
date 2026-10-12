@@ -1,8 +1,9 @@
 import { LayoutPicker } from "./components/LayoutPicker";
 import { ChartTypeSelect } from "./components/ChartTypeSelect";
 import { IndicatorPicker } from "./components/IndicatorPicker";
-import { normalizeIndicators, studiesParam, type IndicatorId } from "./lib/indicators";
-import { normalizeChartType, tradingViewStyle, type ChartType } from "./lib/chart-type";
+import { normalizeIndicators, type IndicatorId } from "./lib/indicators";
+import { tradingViewUrl } from "./lib/tradingview";
+import { normalizeChartType, type ChartType } from "./lib/chart-type";
 import { resolveLayout, cellStyle, MAX_COUNT } from "./lib/layouts";
 import { DailyCard } from "./components/daily/DailyCard";
 import { DailyDetail } from "./components/daily/DailyDetail";
@@ -141,30 +142,14 @@ const uid = () => `s${++_id}`;
 
 function TvChart({ symbol, interval, label, chartType, indicators }: { symbol: string; interval: string; label?: string; chartType: ChartType; indicators: IndicatorId[] }) {
   const theme = useContext(ThemeCtx);
-  const src = useMemo(() => {
-    const p = new URLSearchParams({
-      symbol, interval,
-      theme, style: tradingViewStyle(chartType), locale: "en",
-      hide_top_toolbar: "1",
-      hide_legend: indicators.length ? "0" : "1",
-      hide_side_toolbar: "1",
-      allow_symbol_change: "0",
-      save_image: "0",
-      studies: studiesParam(indicators),
-      withdateranges: "0",
-      hidevolume: "1",
-      hide_volume: "true",
-      calendar: "0",
-      news: "[]",
-      no_referral_id: "1",
-    });
-    return `https://www.tradingview.com/widgetembed/?${p.toString()}`;
-  }, [symbol, interval, theme, chartType, indicators]);
+  const src = useMemo(() => tradingViewUrl({ symbol, interval, theme, chartType, indicators }),
+    [symbol, interval, theme, chartType, indicators]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {label && <div className="chart-label">{label}</div>}
       <iframe
+        key={src}
         src={src}
         title={`${symbol}-${interval}`}
         allowFullScreen
