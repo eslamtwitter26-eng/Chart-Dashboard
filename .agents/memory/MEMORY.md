@@ -1,0 +1,1 @@
+- [Gmail MIME dependency](gmail-mime-dependency.md) — keep Nodemailer installed while using Mailparser; its runtime parser imports Nodemailer address parsing.
