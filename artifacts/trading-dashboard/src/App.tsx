@@ -1,4 +1,6 @@
 import { LayoutPicker } from "./components/LayoutPicker";
+import { ChartTypeSelect } from "./components/ChartTypeSelect";
+import { normalizeChartType, tradingViewStyle, type ChartType } from "./lib/chart-type";
 import { resolveLayout, cellStyle, MAX_COUNT } from "./lib/layouts";
 import { DailyCard } from "./components/daily/DailyCard";
 import { DailyDetail } from "./components/daily/DailyDetail";
@@ -83,8 +85,10 @@ interface SavedTemplate {
   stdInterval?: string;
   stdCount?: number;
   stdLayout?: string;
+  stdChartType?: ChartType;
   customCount?: number;
   customLayout?: string;
+  customChartType?: ChartType;
   // Custom mode data
   customSlots?: CustomSlot[];
 }
@@ -131,12 +135,12 @@ const uid = () => `s${++_id}`;
 
 // ─── TradingView chart ────────────────────────────────────────────────────────
 
-function TvChart({ symbol, interval, label }: { symbol: string; interval: string; label?: string }) {
+function TvChart({ symbol, interval, label, chartType }: { symbol: string; interval: string; label?: string; chartType: ChartType }) {
   const theme = useContext(ThemeCtx);
   const src = useMemo(() => {
     const p = new URLSearchParams({
       symbol, interval,
-      theme, style: "1", locale: "en",
+      theme, style: tradingViewStyle(chartType), locale: "en",
       hide_top_toolbar: "1",
       hide_legend: "1",
       hide_side_toolbar: "1",
@@ -151,7 +155,7 @@ function TvChart({ symbol, interval, label }: { symbol: string; interval: string
       no_referral_id: "1",
     });
     return `https://www.tradingview.com/widgetembed/?${p.toString()}`;
-  }, [symbol, interval, theme]);
+  }, [symbol, interval, theme, chartType]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
@@ -454,8 +458,8 @@ function useFullscreen() {
 // ─── Fullscreen overlay ───────────────────────────────────────────────────────
 
 function FullscreenOverlay({
-  symbol, interval, label, onExit,
-}: { symbol: string; interval: string; label: string; onExit: () => void }) {
+  symbol, interval, label, chartType, onChartTypeChange, onExit,
+}: { symbol: string; interval: string; label: string; chartType: ChartType; onChartTypeChange: (value: ChartType) => void; onExit: () => void }) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 500,
@@ -473,6 +477,7 @@ function FullscreenOverlay({
       }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--text))" }}>{label}</span>
         <span style={{ fontSize: 10, color: "hsl(var(--muted))", flex: 1 }}>Double-click or press ESC to exit</span>
+        <ChartTypeSelect value={chartType} onChange={onChartTypeChange} context="fullscreen" />
         <button
           onClick={onExit}
           style={{
@@ -484,7 +489,7 @@ function FullscreenOverlay({
         >✕ Exit</button>
       </div>
       <div style={{ flex: 1, minHeight: 0 }} onDoubleClick={onExit}>
-        <TvChart symbol={symbol} interval={interval} />
+        <TvChart symbol={symbol} interval={interval} chartType={chartType} />
       </div>
     </div>
   );
@@ -516,10 +521,11 @@ function StandardMode({
   const [tf, setTf]             = useState<Timeframe>(TIMEFRAMES.find(t => t.interval === saved.tfInterval) ?? TIMEFRAMES[2]);
   const [count, setCount]        = useState<number>(Math.min(MAX_COUNT, Math.max(1, Number(saved.count) || 4)));
   const [layoutId, setLayoutId] = useState<string>((saved as { layout?: string }).layout ?? "");
+  const [chartType, setChartType] = useState<ChartType>(normalizeChartType((saved as { chartType?: string }).chartType));
   const [showSave, setShowSave] = useState(false);
   const { fsIdx, setFsIdx }     = useFullscreen();
 
-  useEffect(() => { persist(KEY_STD, { symbols, tfInterval: tf.interval, count, layout: layoutId }); }, [symbols, tf, count, layoutId]);
+  useEffect(() => { persist(KEY_STD, { symbols, tfInterval: tf.interval, count, layout: layoutId, chartType }); }, [symbols, tf, count, layoutId, chartType]);
 
   const slots = useMemo(() =>
     symbols.map(s => ASSETS.find(a => a.symbol === s)).filter(Boolean).slice(0, count) as Asset[],
@@ -529,7 +535,7 @@ function StandardMode({
   const { cols, rows } = layout;
 
   const handleSave = (name: string) => {
-    onSaveTemplate({ name, mode: "standard", stdSymbols: symbols, stdInterval: tf.interval, stdCount: count, stdLayout: layoutId });
+    onSaveTemplate({ name, mode: "standard", stdSymbols: symbols, stdInterval: tf.interval, stdCount: count, stdLayout: layoutId, stdChartType: chartType });
     setShowSave(false);
   };
 
@@ -539,6 +545,7 @@ function StandardMode({
         <div className="logo">CHARTS</div>
         <AssetDropdown selected={symbols} onChange={setSymbols} />
         <SimpleSelect label="Timeframe" options={TIMEFRAMES} value={tf} onChange={setTf} displayFn={v => v.short} />
+        <ChartTypeSelect value={chartType} onChange={setChartType} context="standard" />
         <LayoutPicker count={count} layoutId={layoutId} onChange={(n, id) => { setCount(n); setLayoutId(id); }} />
         <div className="toolbar-sep" />
         <button className="toolbar-icon-btn" onClick={() => setShowSave(true)}>💾 Save</button>
@@ -560,7 +567,7 @@ function StandardMode({
           {slots.map((a, i) => (
             <div key={`${a.symbol}-${tf.interval}`} style={{ ...cellStyle(layout.cells[i]), minHeight: 0, height: "100%", cursor: "crosshair" }}
               onDoubleClick={() => setFsIdx(i)}>
-              <TvChart symbol={a.symbol} interval={tf.interval} label={`${a.label} · ${tf.short}`} />
+              <TvChart symbol={a.symbol} interval={tf.interval} label={`${a.label} · ${tf.short}`} chartType={chartType} />
             </div>
           ))}
         </div>
@@ -571,6 +578,8 @@ function StandardMode({
         <FullscreenOverlay
           symbol={slots[fsIdx].symbol}
           interval={tf.interval}
+          chartType={chartType}
+          onChartTypeChange={setChartType}
           label={`${slots[fsIdx].label} · ${tf.short}`}
           onExit={() => setFsIdx(null)}
         />
@@ -598,7 +607,7 @@ function CustomMode({
   theme: "dark" | "light";
   onToggleTheme: () => void;
 }) {
-  const savedCustom = load<{ slots: CustomSlot[]; count?: number; layout?: string }>(KEY_CUSTOM, {
+  const savedCustom = load<{ slots: CustomSlot[]; count?: number; layout?: string; chartType?: ChartType }>(KEY_CUSTOM, {
     slots: [
       { id: uid(), symbol: "TVC:GOLD",        interval: "D"   },
       { id: uid(), symbol: "FX:EURUSD",       interval: "240" },
@@ -610,6 +619,7 @@ function CustomMode({
   const [slots, setSlots]       = useState<CustomSlot[]>(savedCustom.slots.length ? savedCustom.slots : []);
   const [count, setCount] = useState<number>(Math.min(MAX_COUNT, Math.max(1, Number(savedCustom.count) || savedCustom.slots.length || 1)));
   const [layoutId, setLayoutId] = useState<string>(savedCustom.layout ?? "");
+  const [chartType, setChartType] = useState<ChartType>(normalizeChartType(savedCustom.chartType));
   const [showSave, setShowSave] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const { fsIdx, setFsIdx }     = useFullscreen();
@@ -623,7 +633,7 @@ function CustomMode({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  useEffect(() => { persist(KEY_CUSTOM, { slots, count, layout: layoutId }); }, [slots, count, layoutId]);
+  useEffect(() => { persist(KEY_CUSTOM, { slots, count, layout: layoutId, chartType }); }, [slots, count, layoutId, chartType]);
 
   const addSlot = () => {
     if (count >= slots.length) setCount(Math.min(MAX_COUNT, slots.length + 1));
@@ -645,7 +655,7 @@ function CustomMode({
   };
 
   const handleSave = (name: string) => {
-    onSaveTemplate({ name, mode: "custom", customSlots: slots, customCount: count, customLayout: layoutId });
+    onSaveTemplate({ name, mode: "custom", customSlots: slots, customCount: count, customLayout: layoutId, customChartType: chartType });
     setShowSave(false);
   };
 
@@ -659,6 +669,8 @@ function CustomMode({
         <div className="logo">CHARTS</div>
 
         <LayoutPicker count={count} layoutId={layoutId} onChange={(n, id) => { setCount(n); setLayoutId(id); }} />
+
+        <ChartTypeSelect value={chartType} onChange={setChartType} context="custom" />
 
         {/* Add one slot */}
         <button className="toolbar-action-btn" onClick={addSlot}>+ Add Chart</button>
@@ -760,7 +772,7 @@ function CustomMode({
                 {/* ── Iframe ── */}
                 <div style={{ flex: 1, minHeight: 0, cursor: "crosshair" }}
                   onDoubleClick={() => setFsIdx(i)}>
-                  <TvChart symbol={slot.symbol} interval={slot.interval} />
+                  <TvChart symbol={slot.symbol} interval={slot.interval} chartType={chartType} />
                 </div>
               </div>
             );
@@ -777,6 +789,8 @@ function CustomMode({
           <FullscreenOverlay
             symbol={s.symbol}
             interval={s.interval}
+            chartType={chartType}
+            onChartTypeChange={setChartType}
             label={`${assetLabel} · ${tfShort}`}
             onExit={() => setFsIdx(null)}
           />
@@ -974,9 +988,10 @@ export default function App() {
         tfInterval: t.stdInterval ?? "D",
         count:      t.stdCount    ?? 4,
         layout:     t.stdLayout   ?? "",
+        chartType: normalizeChartType(t.stdChartType),
       });
     } else {
-      persist(KEY_CUSTOM, { slots: t.customSlots ?? [], count: t.customCount ?? Math.min(MAX_COUNT, (t.customSlots ?? []).length || 1), layout: t.customLayout ?? "" });
+      persist(KEY_CUSTOM, { slots: t.customSlots ?? [], count: t.customCount ?? Math.min(MAX_COUNT, (t.customSlots ?? []).length || 1), layout: t.customLayout ?? "", chartType: normalizeChartType(t.customChartType) });
     }
     persist(KEY_MODE, t.mode);
     setMode(t.mode);
