@@ -11,19 +11,51 @@
 <style>
 /* Layout: terminal-style full-height page. Header with live price, a timeframe strip (month to 1 minute), then the chart filling the rest. */
 :root {
-  --bg: #0e0d0a;
-  --panel: #15130e;
-  --line: #2a261b;
-  --fg: #ece6d4;
-  --mute: #8f8873;
-  --gold: #d9a93a;
-  --gold-soft: rgba(217, 169, 58, 0.14);
-  --up: #3fb68b;
-  --down: #e5604d;
+  --bg: hsl(222 47% 9%);
+  --panel: hsl(222 47% 11%);
+  --panel-raised: hsl(222 47% 14%);
+  --line: hsl(217 33% 18%);
+  --fg: hsl(213 31% 91%);
+  --mute: hsl(215 20% 65%);
+  --accent: hsl(210 100% 56%);
+  --accent-soft: hsl(210 100% 56% / 0.14);
+  --accent-contrast: #fff;
+  --up: hsl(142 71% 45%);
+  --down: hsl(0 65% 55%);
+  --grid: rgba(83, 108, 144, 0.18);
+  --crosshair: hsl(215 20% 65%);
+  --line-fill-top: rgba(41, 143, 255, 0.24);
+  --line-fill-bottom: rgba(41, 143, 255, 0.02);
+  --volume-up: rgba(32, 196, 106, 0.35);
+  --volume-down: rgba(217, 74, 74, 0.35);
+  --wave-label-bg: hsl(222 47% 11%);
+  --wave-muted: rgba(154, 169, 189, 0.55);
   --font-ui: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
   --font-num: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   --font-display: "Reem Kufi", "IBM Plex Sans Arabic", Tahoma, sans-serif;
   color-scheme: dark;
+}
+html[data-theme="light"] {
+  --bg: hsl(220 20% 97%);
+  --panel: hsl(220 20% 93%);
+  --panel-raised: hsl(220 18% 88%);
+  --line: hsl(220 16% 80%);
+  --fg: hsl(220 30% 12%);
+  --mute: hsl(220 18% 32%);
+  --accent: hsl(210 90% 44%);
+  --accent-soft: hsl(210 90% 44% / 0.12);
+  --accent-contrast: #fff;
+  --up: hsl(142 60% 34%);
+  --down: hsl(0 65% 45%);
+  --grid: rgba(76, 96, 128, 0.2);
+  --crosshair: hsl(220 14% 48%);
+  --line-fill-top: rgba(17, 105, 204, 0.22);
+  --line-fill-bottom: rgba(17, 105, 204, 0.015);
+  --volume-up: rgba(35, 147, 82, 0.32);
+  --volume-down: rgba(198, 54, 54, 0.3);
+  --wave-label-bg: hsl(220 20% 97%);
+  --wave-muted: rgba(76, 93, 116, 0.55);
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
