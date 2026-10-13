@@ -20,3 +20,9 @@ The user later replaced the whole Gold Lab implementation with their supplied HT
 **Why:** The user explicitly requested using their code; its PAXG/USDT market trades through the weekend and its available tools differ from the prior implementation.
 
 **How to apply:** Preserve the replacement unless the user requests changes to it. Still keep all Gold Lab changes isolated from the other tabs, and do not present token prices as identical to spot gold.
+
+Gold Lab should use the main interface's colors rather than the uploaded file's separate brown/gold theme.
+
+**Why:** The user explicitly requested: “غير الثيم الخاص بالجولد لاب خليه زيه زي الوان الواجهه الرييسيه”.
+
+**How to apply:** Follow the dashboard palette, including its dark/light setting, while preserving Gold Lab's layout, market source and analysis behavior. Do not restore an independent gold-colored interface theme just because it appeared in the original upload.

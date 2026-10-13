@@ -30,6 +30,7 @@
   --volume-down: rgba(217, 74, 74, 0.35);
   --wave-label-bg: hsl(222 47% 11%);
   --wave-muted: rgba(154, 169, 189, 0.55);
+  --wave-correction: #b590fa;
   --font-ui: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
   --font-num: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   --font-display: "Reem Kufi", "IBM Plex Sans Arabic", Tahoma, sans-serif;
@@ -55,6 +56,7 @@ html[data-theme="light"] {
   --volume-down: rgba(198, 54, 54, 0.3);
   --wave-label-bg: hsl(220 20% 97%);
   --wave-muted: rgba(76, 93, 116, 0.55);
+  --wave-correction: #7940c5;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -78,7 +80,7 @@ body {
   margin-inline: auto;
 }
 button { font: inherit; color: inherit; }
-button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* header */
 .head {
@@ -92,7 +94,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .title {
   font-family: var(--font-display);
   font-size: 22px;
-  color: var(--gold);
+  color: var(--accent);
   margin: 0;
   line-height: 1.2;
 }
@@ -155,7 +157,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   border-radius: 4px 4px 0 0;
 }
 .tf:hover, .type-btn:hover { color: var(--fg); background: var(--panel); }
-.tf[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); background: var(--gold-soft); }
+.tf[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-soft); }
 .types { display: flex; gap: 2px; flex: none; }
 .type-btn[aria-pressed="true"] { color: var(--fg); background: var(--panel); border-bottom-color: var(--line); }
 
@@ -194,15 +196,15 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   z-index: 4;
   display: grid;
   place-items: center;
-  background: rgba(14, 13, 10, 0.72);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
   text-align: center;
   padding: 24px;
 }
 .overlay[hidden] { display: none; }
 .overlay p { margin: 0 0 12px; max-width: 34ch; }
 .retry {
-  background: var(--gold);
-  color: #1a1407;
+  background: var(--accent);
+  color: var(--accent-contrast);
   border: 0;
   border-radius: 4px;
   padding: 8px 18px;
@@ -213,7 +215,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 [hidden] { display: none !important; }
 .tools { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .ict-btn { font-family: var(--font-num); font-weight: 600; letter-spacing: 0.04em; }
-.ict-btn[aria-pressed="true"] { color: #1a1407; background: var(--gold); border-bottom-color: var(--gold); }
+.ict-btn[aria-pressed="true"] { color: var(--accent-contrast); background: var(--accent); border-bottom-color: var(--accent); }
 .ictbar { display: flex; flex-direction: column; gap: 6px; padding-bottom: 2px; min-width: 0; }
 .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .chips::-webkit-scrollbar { display: none; }
@@ -231,7 +233,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #ict { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 #elliott { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
 .ew-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.ew-controls select { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px; font: inherit; }
+.ew-controls select { background: var(--panel-raised); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px; font: inherit; }
 
 /* footer */
 .foot {
@@ -246,11 +248,11 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .status { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mute); }
 .status[data-s="live"] .dot { background: var(--up); animation: pulse 1.6s ease-out infinite; }
-.status[data-s="loading"] .dot { background: var(--gold); }
+.status[data-s="loading"] .dot { background: var(--accent); }
 .status[data-s="off"] .dot { background: var(--down); }
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(63, 182, 139, 0.55); }
-  100% { box-shadow: 0 0 0 8px rgba(63, 182, 139, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 55%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
   .status[data-s="live"] .dot { animation: none; }
@@ -376,15 +378,23 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   try { var saved = localStorage.getItem("gold-tf"); if (saved && TFS.some(function (t) { return t.k === saved; })) tf = saved; } catch (e) {}
 
   /* ---------- chart ---------- */
-  var css = getComputedStyle(document.documentElement);
-  function v(name) { return css.getPropertyValue(name).trim(); }
-  var UP = v("--up"), DOWN = v("--down"), GOLD = v("--gold");
+  document.documentElement.dataset.theme = new URLSearchParams(location.search).get("theme") === "light" ? "light" : "dark";
+  // Normalize the shared HSL palette to hex/RGB accepted by chart library 4.2.
+  var colorProbe = document.createElement("canvas").getContext("2d");
+  var colorCache = {};
+  function v(name) {
+    if (colorCache[name]) return colorCache[name];
+    colorProbe.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return colorCache[name] = colorProbe.fillStyle;
+  }
+  var UP = v("--up"), DOWN = v("--down"), ACCENT = v("--accent");
+  var VOLUME_UP = v("--volume-up"), VOLUME_DOWN = v("--volume-down");
 
   var chart = LightweightCharts.createChart($("chart"), {
     autoSize: true,
     layout: { background: { type: "solid", color: v("--panel") }, textColor: v("--mute"), fontFamily: "IBM Plex Mono, monospace", fontSize: 11 },
-    grid: { vertLines: { color: "rgba(42,38,27,0.55)" }, horzLines: { color: "rgba(42,38,27,0.55)" } },
-    crosshair: { mode: 0, vertLine: { color: "#6b6451", labelBackgroundColor: "#2a261b" }, horzLine: { color: "#6b6451", labelBackgroundColor: "#2a261b" } },
+    grid: { vertLines: { color: v("--grid") }, horzLines: { color: v("--grid") } },
+    crosshair: { mode: 0, vertLine: { color: v("--crosshair"), labelBackgroundColor: v("--panel-raised") }, horzLine: { color: v("--crosshair"), labelBackgroundColor: v("--panel-raised") } },
     rightPriceScale: { borderColor: v("--line"), scaleMargins: { top: 0.08, bottom: 0.2 } },
     timeScale: {
       borderColor: v("--line"),
@@ -416,7 +426,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     priceFormat: { type: "price", precision: 2, minMove: 0.01 }
   });
   var line = chart.addAreaSeries({
-    lineColor: GOLD, topColor: "rgba(217,169,58,0.28)", bottomColor: "rgba(217,169,58,0.02)", lineWidth: 2,
+    lineColor: ACCENT, topColor: v("--line-fill-top"), bottomColor: v("--line-fill-bottom"), lineWidth: 2,
     visible: false, priceFormat: { type: "price", precision: 2, minMove: 0.01 }
   });
   var vol = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "vol", lastValueVisible: false, priceLineVisible: false });
@@ -446,7 +456,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     return { time: Math.floor(k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] };
   }
   function volPoint(b) {
-    return { time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(63,182,139,0.35)" : "rgba(229,96,77,0.35)" };
+    return { time: b.time, value: b.volume, color: b.close >= b.open ? VOLUME_UP : VOLUME_DOWN };
   }
   function paint(list) {
     candles.setData(list.map(function (b) { return { time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }; }));
@@ -455,6 +465,31 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     ictDirty = true;
     ewDirty = true;
   }
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    colorCache = {};
+    UP = v("--up"); DOWN = v("--down"); ACCENT = v("--accent");
+    VOLUME_UP = v("--volume-up"); VOLUME_DOWN = v("--volume-down");
+    chart.applyOptions({
+      layout: { background: { type: "solid", color: v("--panel") }, textColor: v("--mute") },
+      grid: { vertLines: { color: v("--grid") }, horzLines: { color: v("--grid") } },
+      crosshair: { vertLine: { color: v("--crosshair"), labelBackgroundColor: v("--panel-raised") },
+        horzLine: { color: v("--crosshair"), labelBackgroundColor: v("--panel-raised") } },
+      rightPriceScale: { borderColor: v("--line") },
+      timeScale: { borderColor: v("--line") }
+    });
+    candles.applyOptions({ upColor: UP, downColor: DOWN, wickUpColor: UP, wickDownColor: DOWN });
+    line.applyOptions({ lineColor: ACCENT, topColor: v("--line-fill-top"), bottomColor: v("--line-fill-bottom") });
+    if (bars.length) vol.setData(bars.map(volPoint));
+  }
+  window.addEventListener("message", function (event) {
+    if (event.source !== window.parent || event.origin !== location.origin) return;
+    var message = event.data;
+    if (!message || message.type !== "trading-dashboard-theme" ||
+        (message.theme !== "dark" && message.theme !== "light")) return;
+    applyTheme(message.theme);
+  });
 
   function fetchKlines(interval, endTime, limit) {
     var tries = 0;
@@ -901,7 +936,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
       if (ly.pd) {
         box(p.t0, p.hi, p.eq, "rgba(229,96,77,0.07)", "rgba(229,96,77,0)", "");
         box(p.t0, p.eq, p.lo, "rgba(63,182,139,0.07)", "rgba(63,182,139,0)", "");
-        hline(p.eq, p.t0, "#8f8873", [5, 4], "EQ 50%");
+        hline(p.eq, p.t0, v("--mute"), [5, 4], "EQ 50%");
         var xl = Math.max(4, X(p.t0) + 4), yh = Y(p.hi), yl = Y(p.lo);
         if (yh != null && yh > 10 && yh < B) label("Premium", xl, yh + 12, "rgba(229,96,77,0.9)");
         if (yl != null && yl > 10 && yl < B) label("Discount", xl, yl - 5, "rgba(63,182,139,0.9)");
@@ -917,8 +952,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
       else box(o.time, o.top, o.bottom, "rgba(229,96,77,0.2)", "#e5604d", "Bearish OB");
     });
     if (ly.lvl) {
-      if (htf.d) { hline(htf.d.high, null, "#9aa4b2", [2, 3], "PDH"); hline(htf.d.low, null, "#9aa4b2", [2, 3], "PDL"); }
-      if (htf.w) { hline(htf.w.high, null, "#9aa4b2", [2, 3], "PWH"); hline(htf.w.low, null, "#9aa4b2", [2, 3], "PWL"); }
+      if (htf.d) { hline(htf.d.high, null, v("--mute"), [2, 3], "PDH"); hline(htf.d.low, null, v("--mute"), [2, 3], "PDL"); }
+      if (htf.w) { hline(htf.w.high, null, v("--mute"), [2, 3], "PWH"); hline(htf.w.low, null, v("--mute"), [2, 3], "PWL"); }
     }
     if (ly.liq) m.liq.forEach(function (q) {
       var name = q.eq ? (q.side === "BSL" ? "EQH" : "EQL") : q.side;
@@ -929,7 +964,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
       if (y == null || y < 0 || y > B) return;
       var x1 = X(e.t1), x2 = X(e.t2);
       if (x2 < 0 || x1 > R) return;
-      var col = e.kind === "CHoCH" ? "#f08a4b" : "#cfc8b4";
+      var col = e.kind === "CHoCH" ? "#f08a4b" : v("--fg");
       var yy = Math.round(y) + 0.5;
       cx.strokeStyle = col; cx.lineWidth = 1; cx.setLineDash([4, 3]);
       cx.beginPath(); cx.moveTo(Math.max(0, x1), yy); cx.lineTo(Math.max(0, x2), yy); cx.stroke();

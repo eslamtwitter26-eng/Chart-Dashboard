@@ -67,6 +67,12 @@
     var right = w - chart.priceScale("right").width(), bottom = h - chart.timeScale().height();
     ctx.save(); ctx.beginPath(); ctx.rect(0, 0, right, bottom); ctx.clip();
     ctx.font = "600 12px IBM Plex Mono, monospace"; ctx.direction = "ltr";
+    var theme = root.document && root.getComputedStyle
+      ? root.getComputedStyle(root.document.documentElement) : null;
+    function color(name, fallback) { return theme ? theme.getPropertyValue(name).trim() || fallback : fallback; }
+    var waveUp = color("--up", "#22c55e"), waveDown = color("--down", "#d94a4a");
+    var correctionColor = color("--wave-correction", "#b590fa");
+    var labelBackground = color("--wave-label-bg", "#0f1929");
     function location(p) {
       var x = chart.timeScale().timeToCoordinate(p.time), y = series.priceToCoordinate(p.price);
       return x == null || y == null ? null : { x: x, y: y };
@@ -74,7 +80,7 @@
     {
       // Recent unnumbered swings remain visible even when the last qualifying
       // numbered pattern is historical and outside the current viewport.
-      ctx.strokeStyle = "rgba(143,136,115,0.55)"; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = color("--wave-muted", "rgba(154,169,189,0.55)"); ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
       ctx.beginPath();
       model.pivots.slice(-30).forEach(function (p, i) {
         var xy = location(p); if (!xy) return;
@@ -85,7 +91,7 @@
     model.patterns.forEach(function (pattern) {
       pattern.points.forEach(function (p, i) {
         var xy = location(p); if (!xy) return;
-        var color = i > 5 ? "#c084fc" : pattern.direction === 1 ? "#5aa9e6" : "#f0b35e";
+        var color = i > 5 ? correctionColor : pattern.direction === 1 ? waveUp : waveDown;
         if (i > 0) {
           var previous = location(pattern.points[i - 1]);
           if (previous) {
@@ -98,7 +104,7 @@
         if (xy.x < 0 || xy.x > right || xy.y < 0 || xy.y > bottom) return;
         ctx.fillStyle = color; ctx.beginPath(); ctx.arc(xy.x, xy.y, 3, 0, Math.PI * 2); ctx.fill();
         var labelY = Math.max(16, Math.min(bottom - 5, xy.y + (p.type === "H" ? -13 : 22)));
-        ctx.fillStyle = "#15130e"; ctx.fillRect(xy.x - 9, labelY - 12, 18, 17);
+        ctx.fillStyle = labelBackground; ctx.fillRect(xy.x - 9, labelY - 12, 18, 17);
         ctx.fillStyle = color; ctx.textAlign = "center"; ctx.fillText(pattern.labels[i], xy.x, labelY);
       });
     });
