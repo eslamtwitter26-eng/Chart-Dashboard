@@ -15,11 +15,11 @@ ICT replaces the traditional indicators only inside Gold Lab; the user explicitl
 
 **How to apply:** Keep these changes isolated from Standard/Custom widgets. Explain the chosen mechanical detection rules on request; do not claim a universal ICT implementation, guaranteed signals, or a Pine runtime.
 
-The user later replaced the whole Gold Lab implementation with their supplied HTML. The prior weekend-compression, countdown and indicator choices above describe the earlier native XAU/USD version, not requirements to rewrite that supplied replacement.
+The user may replace the whole Gold Lab implementation by supplying a new HTML file. The most recently supplied standalone HTML is authoritative; earlier native or uploaded implementations are not requirements to restore.
 
 **Why:** The user explicitly requested using their code; its PAXG/USDT market trades through the weekend and its available tools differ from the prior implementation.
 
-**How to apply:** Preserve the replacement unless the user requests changes to it. Still keep all Gold Lab changes isolated from the other tabs, and do not present token prices as identical to spot gold.
+**How to apply:** Preserve the latest replacement unless the user requests changes to it. Keep Gold Lab changes isolated from the other tabs, preserve the dashboard-to-iframe theme sync when changing HTML, and do not present token prices as identical to spot gold.
 
 Gold Lab should use the main interface's colors rather than the uploaded file's separate brown/gold theme.
 
