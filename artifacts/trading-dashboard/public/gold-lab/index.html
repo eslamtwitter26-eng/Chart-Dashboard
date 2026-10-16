@@ -4,6 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>شارت الذهب المباشر</title>
+<style>
+  html:not([data-access-approved="true"]) body { visibility: hidden !important; }
+</style>
+<script>
+  (async function () {
+    try {
+      var response = await fetch("/api/access/status", { credentials: "same-origin", cache: "no-store" });
+      var status = await response.json();
+      if (response.ok && status.authorized === true) {
+        document.documentElement.setAttribute("data-access-approved", "true");
+        return;
+      }
+    } catch (error) {}
+    window.location.replace("/");
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Reem+Kufi:wght@600&display=swap" rel="stylesheet">

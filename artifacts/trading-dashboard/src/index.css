@@ -87,6 +87,126 @@ html.light {
   border-bottom-color: hsl(var(--primary));
 }
 
+/* ── Email allowlist entry gate ── */
+.access-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 50% 0%, hsl(var(--primary) / 0.12), transparent 55%),
+    hsl(var(--bg));
+}
+.access-card {
+  width: min(100%, 420px);
+  padding: 36px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 20px;
+  background: hsl(var(--bg2));
+  box-shadow: 0 24px 80px hsl(222 47% 4% / 0.28);
+}
+.access-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 22px;
+  border: 1px solid hsl(var(--primary) / 0.28);
+  border-radius: 14px;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+.access-eyebrow {
+  margin-bottom: 8px;
+  color: hsl(var(--primary));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.access-card h1 {
+  color: hsl(var(--text));
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.access-description {
+  margin-top: 9px;
+  color: hsl(var(--text2));
+  font-size: 13px;
+  line-height: 1.8;
+}
+.access-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 26px;
+}
+.access-form label {
+  color: hsl(var(--text2));
+  font-size: 12px;
+  font-weight: 600;
+}
+.access-form input {
+  width: 100%;
+  height: 46px;
+  padding: 0 13px;
+  border: 1px solid hsl(var(--border2));
+  border-radius: 10px;
+  outline: none;
+  background: hsl(var(--bg));
+  color: hsl(var(--text));
+  font: 14px var(--font);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.access-form input:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.14);
+}
+.access-form input::placeholder { color: hsl(var(--muted)); }
+.access-submit, .access-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: hsl(var(--primary));
+  color: white;
+  font-size: 13px;
+  font-weight: 650;
+  transition: background 0.15s, opacity 0.15s;
+}
+.access-submit { margin-top: 7px; }
+.access-submit:hover:not(:disabled), .access-retry:hover { background: hsl(var(--primary-d)); }
+.access-submit:disabled { cursor: wait; opacity: 0.65; }
+.access-error {
+  color: hsl(var(--red));
+  font-size: 12px;
+  line-height: 1.7;
+}
+.access-error .access-retry { margin-top: 12px; padding: 0 14px; }
+.access-status {
+  margin-top: 26px;
+  color: hsl(var(--text2));
+  font-size: 13px;
+}
+.access-note {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid hsl(var(--border));
+  color: hsl(var(--muted));
+  font-size: 11px;
+  line-height: 1.8;
+}
+.access-spin { animation: access-spin 1s linear infinite; }
+@keyframes access-spin { to { transform: rotate(360deg); } }
+@media (max-width: 480px) {
+  .access-card { padding: 28px 22px; }
+}
+
 /* ── Toolbar ── */
 .toolbar {
   display: flex;
