@@ -149,6 +149,7 @@ html.light {
 .access-input-wrap {
   display: flex;
   align-items: center;
+  direction: ltr;
   gap: 10px;
   height: 44px;
   padding: 0 12px;
@@ -187,8 +188,7 @@ html.light {
   font-weight: 650;
   transition: background 0.15s, opacity 0.15s;
 }
-.access-submit { margin-top: 7px; }
-.access-submit { width: 100%; }
+.access-submit { width: 100%; margin-top: 7px; direction: ltr; }
 .access-submit:hover:not(:disabled), .access-retry:hover { background: hsl(var(--primary-d)); }
 .access-submit:disabled { cursor: wait; opacity: 0.65; }
 .access-error {
@@ -207,6 +207,7 @@ html.light {
   display: flex;
   align-items: center;
   justify-content: center;
+  direction: ltr;
   gap: 7px;
   min-height: 42px;
   margin: 22px -22px 0;
@@ -231,6 +232,28 @@ html.light {
   .access-card { padding: 24px 20px 0; }
   .access-note { margin-inline: -20px; }
 }
+.access-logout {
+  position: fixed;
+  z-index: 10001;
+  top: 3px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  background: hsl(var(--bg2));
+  color: hsl(var(--text2));
+  font-size: 10px;
+  font-weight: 600;
+}
+.access-logout:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.5);
+  color: hsl(var(--text));
+}
+.access-logout:disabled { cursor: wait; opacity: 0.6; }
 
 /* ── Toolbar ── */
 .toolbar {

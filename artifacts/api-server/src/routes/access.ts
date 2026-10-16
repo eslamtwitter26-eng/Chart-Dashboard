@@ -79,4 +79,9 @@ router.post("/access/enter", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/access/exit", (_req, res): void => {
+  clearAccessCookie(res);
+  res.status(204).end();
+});
+
 export default router;

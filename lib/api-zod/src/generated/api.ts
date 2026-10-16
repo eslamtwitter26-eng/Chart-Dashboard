@@ -33,6 +33,12 @@ export const EnterWithAllowlistedEmailResponse = zod.object({
 
 
 /**
+ * @summary Clear the browser's access session cookie
+ */
+export const ExitAccessSessionResponse = zod.void()
+
+
+/**
  * @summary Independent real XAU/USD OHLC history, never TradingView widget data
  */
 export const GetGoldHistoryQueryParams = zod.object({

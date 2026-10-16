@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, BarChart3, LockKeyhole, Mail, RefreshCw } from "lucide-react";
+import { ArrowRight, BarChart3, LogOut, Mail, RefreshCw } from "lucide-react";
 
 type AccessState = "checking" | "locked" | "allowed" | "error";
 
@@ -9,6 +9,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AccessState>("checking");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [message, setMessage] = useState("");
 
   const checkAccess = useCallback(async () => {
@@ -68,7 +69,33 @@ export function AccessGate({ children }: { children: ReactNode }) {
     }
   }
 
-  if (state === "allowed") return children;
+  async function logout() {
+    setLoggingOut(true);
+    try {
+      const response = await fetch(`${ACCESS_URL}/exit`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      if (!response.ok) throw new Error("Could not end the access session.");
+      window.location.replace(import.meta.env.BASE_URL);
+    } catch {
+      setMessage("تعذر تسجيل الخروج. حاول مرة أخرى.");
+      setState("error");
+      setLoggingOut(false);
+    }
+  }
+
+  if (state === "allowed") {
+    return (
+      <>
+        <button className="access-logout" type="button" onClick={() => void logout()} disabled={loggingOut}>
+          {loggingOut ? <RefreshCw className="access-spin" size={14} /> : <LogOut size={14} />}
+          Logout
+        </button>
+        {children}
+      </>
+    );
+  }
 
   return (
     <main className="access-screen" dir="rtl">
@@ -112,8 +139,8 @@ export function AccessGate({ children }: { children: ReactNode }) {
             </div>
             {message && <p className="access-error" role="alert">{message}</p>}
             <button className="access-submit" type="submit" disabled={busy}>
-              {busy ? <RefreshCw className="access-spin" size={17} /> : <LockKeyhole size={17} />}
-              {busy ? "Checking…" : "Access Dashboard"}
+              {busy && <RefreshCw className="access-spin" size={17} />}
+              <span>{busy ? "Checking…" : "Access Dashboard"}</span>
               {!busy && <ArrowRight size={16} />}
             </button>
           </form>
@@ -121,7 +148,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
 
         <div className="access-note">
           <span className="access-dot" aria-hidden="true" />
-          <span>Secure access restricted to approved email addresses.</span>
+          <span>Access is checked against the approved email list.</span>
         </div>
       </section>
     </main>
