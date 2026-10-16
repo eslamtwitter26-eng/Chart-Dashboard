@@ -9,6 +9,30 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Check whether the browser has an active allowlisted access session
+ */
+export const GetAccessStatusResponse = zod.object({
+  "authorized": zod.boolean()
+})
+
+
+/**
+ * @summary Start a short-lived session when the submitted email is in the public allowlist
+ */
+export const enterWithAllowlistedEmailBodyEmailMax = 254;
+
+
+
+export const EnterWithAllowlistedEmailBody = zod.object({
+  "email": zod.string().email().max(enterWithAllowlistedEmailBodyEmailMax)
+})
+
+export const EnterWithAllowlistedEmailResponse = zod.object({
+  "authorized": zod.boolean()
+})
+
+
+/**
  * @summary Independent real XAU/USD OHLC history, never TradingView widget data
  */
 export const GetGoldHistoryQueryParams = zod.object({

@@ -10,7 +10,47 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: access
+    description: Email allowlist access gate
 paths:
+  /access/status:
+    get:
+      operationId: getAccessStatus
+      tags: [access]
+      summary: Check whether the browser has an active allowlisted access session
+      responses:
+        "200":
+          description: Access state, without exposing the email allowlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessStatus"
+        "503":
+          description: Access list could not be checked; access remains closed
+  /access/enter:
+    post:
+      operationId: enterWithAllowlistedEmail
+      tags: [access]
+      summary: Start a short-lived session when the submitted email is in the public allowlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessEmailRequest"
+      responses:
+        "200":
+          description: Access granted; an HttpOnly session cookie is set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessStatus"
+        "400":
+          description: Invalid email address
+        "403":
+          description: Email is not in the allowlist
+        "503":
+          description: Access list could not be checked; access remains closed
   /gold/history:
     get:
       operationId: getGoldHistory
@@ -53,6 +93,19 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    AccessStatus:
+      type: object
+      required: [authorized]
+      properties:
+        authorized: { type: boolean }
+    AccessEmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
     GoldBar:
       type: object
       required: [time, open, high, low, close]
