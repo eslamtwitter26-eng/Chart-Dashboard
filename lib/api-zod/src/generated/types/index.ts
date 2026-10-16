@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './accessEmailRequest';
+export * from './accessStatus';
 export * from './getGoldHistoryInterval';
 export * from './getGoldHistoryParams';
 export * from './goldBar';

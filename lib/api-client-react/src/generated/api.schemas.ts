@@ -5,6 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface AccessStatus {
+  authorized: boolean;
+}
+
+export interface AccessEmailRequest {
+  /** @maxLength 254 */
+  email: string;
+}
+
 export interface GoldBar {
   /** UTC Unix seconds at candle OPEN, not quote-update time */
   time: number;
