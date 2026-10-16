@@ -51,6 +51,14 @@ paths:
           description: Email is not in the allowlist
         "503":
           description: Access list could not be checked; access remains closed
+  /access/exit:
+    post:
+      operationId: exitAccessSession
+      tags: [access]
+      summary: Clear the browser's access session cookie
+      responses:
+        "204":
+          description: Session ended
   /gold/history:
     get:
       operationId: getGoldHistory

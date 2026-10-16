@@ -219,6 +219,80 @@ export const useEnterWithAllowlistedEmail = <TError = ErrorType<void>,
       return useMutation(getEnterWithAllowlistedEmailMutationOptions(options));
     }
 
+export const getExitAccessSessionUrl = () => {
+
+
+
+
+  return `/api/access/exit`
+}
+
+/**
+ * @summary Clear the browser's access session cookie
+ */
+export const exitAccessSession = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getExitAccessSessionUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getExitAccessSessionMutationKey = () => ['exitAccessSession'] as const;
+
+export const getExitAccessSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exitAccessSession>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof exitAccessSession>>, TError,void, TContext> => {
+
+const mutationKey = getExitAccessSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof exitAccessSession>>, void> = () => {
+
+
+          return  exitAccessSession(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExitAccessSessionMutationResult = NonNullable<Awaited<ReturnType<typeof exitAccessSession>>>
+
+    export type ExitAccessSessionMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Clear the browser's access session cookie
+ */
+export const useExitAccessSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exitAccessSession>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof exitAccessSession>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getExitAccessSessionMutationOptions(options));
+    }
+
 export const getGetGoldHistoryUrl = (params: GetGoldHistoryParams,) => {
   const normalizedParams = new URLSearchParams();
 
