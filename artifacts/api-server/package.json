@@ -16,9 +16,9 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "drizzle-orm": "catalog:",
-    "express": "^5.2.1",
-    "mailparser": "^3.9.38",
-    "nodemailer": "^8.0.11",
+    "express": "^5.3.0",
+    "mailparser": "^3.9.40",
+    "nodemailer": "^10.1.2",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0"
   },
