@@ -11,4 +11,4 @@ On the deployed Vercel site, the frontend loaded but `/api/access/status` return
 
 **Why:** the app can build and serve on Vercel while protected routes still fail at runtime if Replit-only integration context or secrets are absent.
 
-**How to apply:** keep the Vercel frontend/API build independent from Replit-only preview services, use the API package's compiler for the Vercel handler, define and probe explicit access endpoints on the public deployment, require the host's own `SESSION_SECRET` and market-data key, and plan a separate Google OAuth migration before claiming Gmail analysis works on Vercel.
+**How to apply:** keep the Vercel frontend/API build independent from Replit-only preview services, use the API package's compiler for the Vercel handler, and probe explicit access endpoints on the public deployment. For the email-only gate, an unsigned short-lived session is acceptable when `SESSION_SECRET` is absent only because each protected request rechecks the public allowlist; this does not verify email ownership. Market data still needs the host's own key, and Gmail analysis needs a separate Google OAuth migration before it can work on Vercel.
