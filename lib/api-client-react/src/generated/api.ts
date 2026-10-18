@@ -23,8 +23,10 @@ import type {
   AccessEmailRequest,
   AccessStatus,
   GetGoldHistoryParams,
+  GetPaxgKlinesParams,
   GoldHistory,
-  HealthStatus
+  HealthStatus,
+  PaxgKlinesResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -365,6 +367,90 @@ export function useGetGoldHistory<TData = Awaited<ReturnType<typeof getGoldHisto
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetGoldHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPaxgKlinesUrl = (params: GetPaxgKlinesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/gold/paxg/klines?${stringifiedParams}` : `/api/gold/paxg/klines`
+}
+
+/**
+ * @summary Fetch Binance PAXG/USDT klines through the authenticated server
+ */
+export const getPaxgKlines = async (params: GetPaxgKlinesParams, options?: Parameters<typeof customFetch>[1]): Promise<PaxgKlinesResponse> => {
+
+  return customFetch<PaxgKlinesResponse>(getGetPaxgKlinesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPaxgKlinesQueryKey = (params?: GetPaxgKlinesParams,) => {
+    return [
+    `/api/gold/paxg/klines`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPaxgKlinesQueryOptions = <TData = Awaited<ReturnType<typeof getPaxgKlines>>, TError = ErrorType<void>>(params: GetPaxgKlinesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaxgKlines>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaxgKlinesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaxgKlines>>> = ({ signal }) => getPaxgKlines(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaxgKlines>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPaxgKlinesQueryResult = NonNullable<Awaited<ReturnType<typeof getPaxgKlines>>>
+export type GetPaxgKlinesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Fetch Binance PAXG/USDT klines through the authenticated server
+ */
+
+export function useGetPaxgKlines<TData = Awaited<ReturnType<typeof getPaxgKlines>>, TError = ErrorType<void>>(
+ params: GetPaxgKlinesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaxgKlines>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPaxgKlinesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

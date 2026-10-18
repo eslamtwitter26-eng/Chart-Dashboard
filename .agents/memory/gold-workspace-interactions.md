@@ -26,3 +26,9 @@ Gold Lab should use the main interface's colors rather than the uploaded file's 
 **Why:** The user explicitly requested: “غير الثيم الخاص بالجولد لاب خليه زيه زي الوان الواجهه الرييسيه”.
 
 **How to apply:** Follow the dashboard palette, including its dark/light setting, while preserving Gold Lab's layout, market source and analysis behavior. Do not restore an independent gold-colored interface theme just because it appeared in the original upload.
+
+If Binance requests from the browser stall, proxy the same PAXG/USDT feed through the authenticated same-origin API and bound every request with a timeout; do not switch market-data sources to mask a connectivity problem.
+
+**Why:** The supplied Gold Lab uses Binance PAXG/USDT, but browser cross-origin requests may hang even when the server can reach Binance.
+
+**How to apply:** Keep the source, symbol and candle values unchanged; use server-side access control, validate upstream OHLC, and show a finite loading/error state.

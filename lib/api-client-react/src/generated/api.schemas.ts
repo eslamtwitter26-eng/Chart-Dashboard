@@ -38,6 +38,43 @@ export interface GoldHistory {
   bars: GoldBar[];
 }
 
+export type PaxgKlinesResponseInterval = typeof PaxgKlinesResponseInterval[keyof typeof PaxgKlinesResponseInterval];
+
+
+export const PaxgKlinesResponseInterval = {
+  '1m': '1m',
+  '3m': '3m',
+  '5m': '5m',
+  '15m': '15m',
+  '30m': '30m',
+  '1h': '1h',
+  '2h': '2h',
+  '4h': '4h',
+  '6h': '6h',
+  '8h': '8h',
+  '12h': '12h',
+  '1d': '1d',
+  '3d': '3d',
+  '1w': '1w',
+  '1M': '1M',
+} as const;
+
+export interface PaxgKline {
+  /** Binance candle opening time in milliseconds since Unix epoch */
+  openTime: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface PaxgKlinesResponse {
+  symbol: 'PAXGUSDT';
+  interval: PaxgKlinesResponseInterval;
+  bars: PaxgKline[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -62,5 +99,43 @@ export const GetGoldHistoryInterval = {
   '1day': '1day',
   '1week': '1week',
   '1month': '1month',
+} as const;
+
+export type GetPaxgKlinesParams = {
+interval: GetPaxgKlinesInterval;
+/**
+ * @minimum 1
+ * @maximum 1000
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+startTime?: number;
+/**
+ * @minimum 0
+ */
+endTime?: number;
+};
+
+export type GetPaxgKlinesInterval = typeof GetPaxgKlinesInterval[keyof typeof GetPaxgKlinesInterval];
+
+
+export const GetPaxgKlinesInterval = {
+  '1m': '1m',
+  '3m': '3m',
+  '5m': '5m',
+  '15m': '15m',
+  '30m': '30m',
+  '1h': '1h',
+  '2h': '2h',
+  '4h': '4h',
+  '6h': '6h',
+  '8h': '8h',
+  '12h': '12h',
+  '1d': '1d',
+  '3d': '3d',
+  '1w': '1w',
+  '1M': '1M',
 } as const;
 

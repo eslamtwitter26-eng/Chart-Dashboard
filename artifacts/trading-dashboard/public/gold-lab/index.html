@@ -687,7 +687,13 @@ html[data-theme="light"] .scalebtns button[aria-pressed="true"] { background: #1
   document.documentElement.setAttribute("data-theme", THEME);
 
   var SYMBOL = "paxgusdt";
-  var REST_HOSTS = ["https://data-api.binance.vision", "https://api.binance.com"];
+  // Prefer the same-origin server proxy so browser/network restrictions cannot
+  // leave the chart waiting on Binance's cross-origin request indefinitely.
+  var REST_HOSTS = [
+    { url: "/api/gold/paxg/klines", proxy: true },
+    { url: "https://data-api.binance.vision", proxy: false },
+    { url: "https://api.binance.com", proxy: false }
+  ];
   var WS_HOSTS = ["wss://data-stream.binance.vision", "wss://stream.binance.com:9443"];
 
   // Ordered from the largest frame down to one minute.
@@ -786,14 +792,26 @@ html[data-theme="light"] .scalebtns button[aria-pressed="true"] { background: #1
   function fetchRaw(interval, endTime, limit, startTime) {
     var tries = 0;
     function attempt() {
-      var host = REST_HOSTS[restIdx % REST_HOSTS.length];
-      var url = host + "/api/v3/klines?symbol=" + SYMBOL.toUpperCase() + "&interval=" + interval + "&limit=" + (limit || 1000) + (startTime ? "&startTime=" + startTime : "") + (endTime ? "&endTime=" + endTime : "");
-      return fetch(url).then(function (r) {
+      var source = REST_HOSTS[restIdx % REST_HOSTS.length];
+      var params = new URLSearchParams({ interval: interval, limit: String(limit || 1000) });
+      if (startTime) params.set("startTime", String(startTime));
+      if (endTime) params.set("endTime", String(endTime));
+      var url = source.proxy
+        ? source.url + "?" + params.toString()
+        : source.url + "/api/v3/klines?symbol=" + SYMBOL.toUpperCase() + "&" + params.toString();
+      var controller = new AbortController();
+      var timer = setTimeout(function () { controller.abort(); }, source.proxy ? 7500 : 4500);
+      return fetch(url, { signal: controller.signal, cache: "no-store" }).then(function (r) {
         if (!r.ok) throw new Error("http " + r.status);
         return r.json();
-      }).then(function (rows) {
+      }).then(function (payload) {
+        var rows = source.proxy ? payload && payload.bars : payload;
         if (!Array.isArray(rows)) throw new Error("bad response");
-        return rows.map(toBar);
+        return source.proxy ? rows.map(function (b) {
+          return { time: Math.floor(+b.openTime / 1000), open: +b.open, high: +b.high, low: +b.low, close: +b.close, volume: +b.volume };
+        }) : rows.map(toBar);
+      }).finally(function () {
+        clearTimeout(timer);
       }).catch(function (err) {
         tries++;
         restIdx++;

@@ -67,6 +67,39 @@ export const GetGoldHistoryResponse = zod.object({
 
 
 /**
+ * @summary Fetch Binance PAXG/USDT klines through the authenticated server
+ */
+export const getPaxgKlinesQueryLimitDefault = 1000;
+export const getPaxgKlinesQueryLimitMax = 1000;
+
+export const getPaxgKlinesQueryStartTimeMin = 0;
+
+export const getPaxgKlinesQueryEndTimeMin = 0;
+
+
+
+export const GetPaxgKlinesQueryParams = zod.object({
+  "interval": zod.enum(['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']),
+  "limit": zod.coerce.number().int().min(1).max(getPaxgKlinesQueryLimitMax).default(getPaxgKlinesQueryLimitDefault),
+  "startTime": zod.coerce.number().int().min(getPaxgKlinesQueryStartTimeMin).optional(),
+  "endTime": zod.coerce.number().int().min(getPaxgKlinesQueryEndTimeMin).optional()
+})
+
+export const GetPaxgKlinesResponse = zod.object({
+  "symbol": zod.literal("PAXGUSDT"),
+  "interval": zod.enum(['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']),
+  "bars": zod.array(zod.object({
+  "openTime": zod.number().int().describe('Binance candle opening time in milliseconds since Unix epoch'),
+  "open": zod.number(),
+  "high": zod.number(),
+  "low": zod.number(),
+  "close": zod.number(),
+  "volume": zod.number()
+}))
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
