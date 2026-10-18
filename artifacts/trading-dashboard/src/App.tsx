@@ -826,7 +826,11 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
       const url    = force ? "/api/emails/refresh" : "/api/emails/latest";
       const method = force ? "POST" : "GET";
       const res    = await fetch(url, { method });
-      const json   = await res.json();
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.toLowerCase().includes("json")) {
+        throw new Error(`Daily Analysis API returned a non-JSON response (HTTP ${res.status}).`);
+      }
+      const json = await res.json() as Partial<EmailData> & { error?: string; message?: string };
       if (!res.ok) {
         setError(json.message ?? json.error ?? "Failed to fetch email");
         setData(null);
