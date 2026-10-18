@@ -12,6 +12,12 @@
     "api/access/exit.js": {
       "maxDuration": 30
     },
+    "api/emails/latest.js": {
+      "maxDuration": 30
+    },
+    "api/emails/refresh.js": {
+      "maxDuration": 30
+    },
     "api/[...path].js": {
       "maxDuration": 30
     }
