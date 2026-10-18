@@ -5,3 +5,4 @@
 - [Gold provider quality](gold-provider-quality.md) — legacy Twelve Data anomalies; do not apply spot-gold weekend filtering to the replacement Binance token market.
 - [Gold workspace interactions](gold-workspace-interactions.md) — supplied HTML supersedes earlier native chart choices; changes remain scoped to Gold Lab.
 - [Manual email allowlist](email-allowlist.md) — Only manually listed emails pass the gate; a public email list does not prove who entered an address.
+- [Trading Central report selection](trading-central-report-selection.md) — prioritize recent Technical Analysis emails and ignore messages that yield no asset cards.

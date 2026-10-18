@@ -2,6 +2,7 @@ import { Router } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { simpleParser } from "mailparser";
 import { extractAnalysisField } from "../lib/email-fields";
+import { findFirstEmailWithCards } from "../lib/email-selection";
 import type { Response } from "express";
 
 const router = Router();
@@ -36,9 +37,12 @@ let _cache: { data: ParsedEmail; fetchedAt: number } | null = null;
 const CACHE_TTL = 30 * 60 * 1000;
 
 class GmailConnectorError extends Error {
-  constructor(readonly status: number) {
+  readonly status: number;
+
+  constructor(status: number) {
     super(`Gmail connector request failed (${status})`);
     this.name = "GmailConnectorError";
+    this.status = status;
   }
 }
 
@@ -203,16 +207,38 @@ function parseEmailHtml(html: string, subject: string, receivedAt: string): Pars
 
 // ─── Gmail API fetch ──────────────────────────────────────────────────────────
 
+async function parseMessage(connectors: ReplitConnectors, messageId: string): Promise<ParsedEmail | null> {
+  const response = await connectors.proxy(
+    "google-mail",
+    `/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=raw`,
+    { method: "GET" },
+  );
+  if (!response.ok) throw new GmailConnectorError(response.status);
+  const message = await response.json() as { raw?: string };
+  if (!message.raw) return null;
+
+  let parsed: Awaited<ReturnType<typeof simpleParser>>;
+  try {
+    parsed = await simpleParser(Buffer.from(message.raw, "base64url"));
+  } catch {
+    return null;
+  }
+  const html = (parsed.html as string) || parsed.textAsHtml || "";
+  const htmlWithImages = inlineReferencedImages(html, parsed.attachments);
+  const subject = parsed.subject || "";
+  const receivedAt = parsed.date?.toISOString() || new Date().toISOString();
+  return parseEmailHtml(htmlWithImages, subject, receivedAt);
+}
+
 async function fetchAndParse(): Promise<ParsedEmail | null> {
   const connectors = new ReplitConnectors();
   const searchQueries = [
-    "from:tradingcentral newer_than:45d",
-    'subject:"Trading Central" newer_than:45d',
-    "from:tradingcentral",
-    'subject:"Trading Central"',
+    'from:tradingcentral subject:"Technical Analysis" newer_than:7d',
+    'subject:"Technical Analysis" newer_than:7d',
+    "from:tradingcentral newer_than:7d",
+    'subject:"Trading Central" newer_than:7d',
   ];
-
-  let messageId = "";
+  const checkedIds = new Set<string>();
   for (const q of searchQueries) {
     const params = new URLSearchParams({ q, maxResults: "10" });
     const response = await connectors.proxy(
@@ -222,30 +248,21 @@ async function fetchAndParse(): Promise<ParsedEmail | null> {
     );
     if (!response.ok) throw new GmailConnectorError(response.status);
     const result = await response.json() as { messages?: Array<{ id?: string }> };
-    const firstMessageId = result.messages?.find(message => message.id)?.id;
-    if (firstMessageId) {
-      messageId = firstMessageId;
-      break;
+    const messageIds: string[] = [];
+    for (const message of result.messages ?? []) {
+      const id = message.id;
+      if (id && !checkedIds.has(id)) {
+        checkedIds.add(id);
+        messageIds.push(id);
+      }
     }
+    const analyzedEmail = await findFirstEmailWithCards(
+      messageIds,
+      messageId => parseMessage(connectors, messageId),
+    );
+    if (analyzedEmail) return analyzedEmail;
   }
-  if (!messageId) return null;
-
-  const response = await connectors.proxy(
-    "google-mail",
-    `/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=raw`,
-    { method: "GET" },
-  );
-  if (!response.ok) throw new GmailConnectorError(response.status);
-  const message = await response.json() as { raw?: string };
-  if (!message.raw) throw new Error("Gmail returned a message without a raw body.");
-
-  const parsed = await simpleParser(Buffer.from(message.raw, "base64url"));
-  const html = (parsed.html as string) || parsed.textAsHtml || "";
-  const htmlWithImages = inlineReferencedImages(html, parsed.attachments);
-  const subject = parsed.subject || "";
-  const receivedAt = parsed.date?.toISOString() || new Date().toISOString();
-
-  return parseEmailHtml(htmlWithImages, subject, receivedAt);
+  return null;
 }
 
 async function getEmail(forceRefresh = false): Promise<ParsedEmail | null> {
@@ -282,7 +299,10 @@ function handleError(res: Response, err: unknown) {
 router.get("/emails/latest", async (req, res) => {
   try {
     const data = await getEmail(false);
-    if (!data) { res.status(404).json({ error: "No Trading Central emails found" }); return; }
+    if (!data) {
+      res.status(404).json({ error: "No recent Trading Central technical-analysis email with asset cards was found." });
+      return;
+    }
     const cacheAge = _cache ? Math.round((Date.now() - _cache.fetchedAt) / 1000) : 0;
     res.json({ ...data, cacheAge });
   } catch (err) {
@@ -298,7 +318,10 @@ router.post("/emails/refresh", async (req, res) => {
   try {
     _cache = null;
     const data = await getEmail(true);
-    if (!data) { res.status(404).json({ error: "No Trading Central emails found" }); return; }
+    if (!data) {
+      res.status(404).json({ error: "No recent Trading Central technical-analysis email with asset cards was found." });
+      return;
+    }
     res.json({ ...data, cacheAge: 0 });
   } catch (err) {
     req.log.error(
