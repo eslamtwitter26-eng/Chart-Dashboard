@@ -18,6 +18,7 @@ async function buildAll() {
     entryPoints: [
       path.resolve(artifactDir, "src/index.ts"),
       path.resolve(artifactDir, "src/vercel-handler.ts"),
+      path.resolve(artifactDir, "src/access-functions.ts"),
     ],
     platform: "node",
     bundle: true,
