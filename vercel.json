@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "artifacts/trading-dashboard/dist/public",
+  "functions": {
+    "api/[...path].ts": {
+      "maxDuration": 30
+    }
+  }
+}
