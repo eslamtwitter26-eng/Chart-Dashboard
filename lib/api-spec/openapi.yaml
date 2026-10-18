@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: access
     description: Email allowlist access gate
+  - name: gold
+    description: Gold market data
 paths:
   /access/status:
     get:
@@ -86,6 +88,43 @@ paths:
           description: Invalid or unavailable upstream data
         "503":
           description: Missing server credentials
+  /gold/paxg/klines:
+    get:
+      operationId: getPaxgKlines
+      tags: [gold]
+      summary: Fetch Binance PAXG/USDT klines through the authenticated server
+      parameters:
+        - in: query
+          name: interval
+          required: true
+          schema:
+            type: string
+            enum: [1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M]
+        - in: query
+          name: limit
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 1000 }
+        - in: query
+          name: startTime
+          required: false
+          schema: { type: integer, minimum: 0 }
+        - in: query
+          name: endTime
+          required: false
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200":
+          description: Validated PAXG/USDT candles from Binance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaxgKlinesResponse"
+        "400":
+          description: Invalid interval or pagination parameters
+        "429":
+          description: Binance request limit reached
+        "502":
+          description: Binance data is unavailable or invalid
   /healthz:
     get:
       operationId: healthCheck
@@ -145,6 +184,28 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GoldBar"
+    PaxgKlinesResponse:
+      type: object
+      required: [symbol, interval, bars]
+      properties:
+        symbol: { type: string, const: PAXGUSDT }
+        interval:
+          type: string
+          enum: [1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M]
+        bars:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaxgKline"
+    PaxgKline:
+      type: object
+      required: [openTime, open, high, low, close, volume]
+      properties:
+        openTime: { type: integer, description: Binance candle opening time in milliseconds since Unix epoch }
+        open: { type: number }
+        high: { type: number }
+        low: { type: number }
+        close: { type: number }
+        volume: { type: number }
     HealthStatus:
       type: object
       properties:

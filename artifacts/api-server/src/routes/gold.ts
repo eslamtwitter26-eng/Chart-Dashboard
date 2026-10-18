@@ -1,9 +1,33 @@
 import { Router, type IRouter } from "express";
-import { GetGoldHistoryQueryParams, GetGoldHistoryResponse } from "@workspace/api-zod";
+import {
+  GetGoldHistoryQueryParams,
+  GetGoldHistoryResponse,
+  GetPaxgKlinesQueryParams,
+  GetPaxgKlinesResponse,
+} from "@workspace/api-zod";
 import { GoldDataError, GoldDataService } from "../lib/gold-data";
+import { fetchPaxgKlines, PaxgDataError } from "../lib/paxg-data";
 
 const router: IRouter = Router();
 const service = new GoldDataService();
+
+router.get("/gold/paxg/klines", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const query = GetPaxgKlinesQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: "إطار أو نطاق طلب شموع PAXG/USDT غير صالح." });
+    return;
+  }
+  try {
+    const data = await fetchPaxgKlines(query.data);
+    res.json(GetPaxgKlinesResponse.parse(data));
+  } catch (error: unknown) {
+    const safe = error instanceof PaxgDataError ? error :
+      new PaxgDataError(502, "تعذر تحميل شموع PAXG/USDT.");
+    if (safe.status === 429) res.set("Retry-After", String(safe.retryAfter));
+    res.status(safe.status).json({ error: safe.message });
+  }
+});
 
 router.get("/gold/history", async (req, res) => {
   res.set("Cache-Control", "no-store");
