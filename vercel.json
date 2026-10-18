@@ -3,6 +3,15 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "artifacts/trading-dashboard/dist/public",
   "functions": {
+    "api/access/status.js": {
+      "maxDuration": 30
+    },
+    "api/access/enter.js": {
+      "maxDuration": 30
+    },
+    "api/access/exit.js": {
+      "maxDuration": 30
+    },
     "api/[...path].js": {
       "maxDuration": 30
     }

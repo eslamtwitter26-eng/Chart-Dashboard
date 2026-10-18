@@ -7,6 +7,8 @@ When deploying this project outside Replit, explicitly configure its runtime sec
 
 Vercel may independently type-check a TypeScript function's imported Express source using its own NodeNext settings, even when the workspace's API typecheck passes. For this app, expose the existing Express app as a precompiled JavaScript module to the Vercel function instead of importing the TypeScript source directly.
 
+On the deployed Vercel site, the frontend loaded but `/api/access/status` returned Vercel's 404 while the catch-all health request returned a function error. Do not assume a locally working Express catch-all proves nested production API routes are registered.
+
 **Why:** the app can build and serve on Vercel while protected routes still fail at runtime if Replit-only integration context or secrets are absent.
 
-**How to apply:** keep the Vercel frontend/API build independent from Replit-only preview services, use the API package's compiler for the Vercel handler, require the host's own `SESSION_SECRET` and market-data key, and plan a separate Google OAuth migration before claiming Gmail analysis works on Vercel.
+**How to apply:** keep the Vercel frontend/API build independent from Replit-only preview services, use the API package's compiler for the Vercel handler, define and probe explicit access endpoints on the public deployment, require the host's own `SESSION_SECRET` and market-data key, and plan a separate Google OAuth migration before claiming Gmail analysis works on Vercel.
