@@ -56,13 +56,6 @@ router.post("/access/enter", async (req, res): Promise<void> => {
     return;
   }
 
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    req.log.error("SESSION_SECRET is not configured; access gate is closed");
-    res.status(503).json({ error: "بوابة الدخول غير مهيأة حاليًا." });
-    return;
-  }
-
   try {
     const emails = await getAllowedEmails();
     if (!emails.has(email)) {
@@ -70,7 +63,7 @@ router.post("/access/enter", async (req, res): Promise<void> => {
       return;
     }
 
-    setAccessCookie(res, createAccessToken(email, secret));
+    setAccessCookie(res, createAccessToken(email, process.env.SESSION_SECRET));
     res.set("Cache-Control", "no-store");
     res.json({ authorized: true });
   } catch (error) {

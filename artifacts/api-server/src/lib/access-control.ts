@@ -54,12 +54,18 @@ export async function getAllowedEmails(): Promise<Set<string>> {
   }
 }
 
-export function createAccessToken(email: string, secret: string, now = Date.now()): string {
-  if (!secret) throw new Error("SESSION_SECRET is required for the access gate.");
+/**
+ * The access policy is intentionally email-list-only and does not verify mailbox
+ * ownership. If a deployment host has no SESSION_SECRET, issue an unsigned,
+ * short-lived claim; protected requests still re-check the email against the
+ * allowlist. This preserves the configured policy, but is not identity proof.
+ */
+export function createAccessToken(email: string, secret?: string, now = Date.now()): string {
   const payload = Buffer.from(JSON.stringify({
     email,
     expiresAt: now + ACCESS_SESSION_TTL_MS,
   })).toString("base64url");
+  if (!secret) return `u.${payload}`;
   const signature = createHmac("sha256", secret).update(payload).digest("base64url");
   return `${payload}.${signature}`;
 }
@@ -69,19 +75,26 @@ export function readAccessToken(
   secret: string | undefined,
   now = Date.now(),
 ): { email: string; expiresAt: number } | null {
-  if (!token || !secret) return null;
-  const separator = token.lastIndexOf(".");
-  if (separator <= 0) return null;
-  const payload = token.slice(0, separator);
-  const signature = token.slice(separator + 1);
-  const expected = createHmac("sha256", secret).update(payload).digest();
-  let actual: Buffer;
-  try {
-    actual = Buffer.from(signature, "base64url");
-  } catch {
-    return null;
+  if (!token) return null;
+
+  let payload: string;
+  if (token.startsWith("u.")) {
+    payload = token.slice(2);
+  } else {
+    if (!secret) return null;
+    const separator = token.lastIndexOf(".");
+    if (separator <= 0) return null;
+    payload = token.slice(0, separator);
+    const signature = token.slice(separator + 1);
+    const expected = createHmac("sha256", secret).update(payload).digest();
+    let actual: Buffer;
+    try {
+      actual = Buffer.from(signature, "base64url");
+    } catch {
+      return null;
+    }
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
   }
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
 
   try {
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {

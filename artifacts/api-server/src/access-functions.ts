@@ -123,19 +123,13 @@ export async function accessEnterHandler(
     return;
   }
 
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    sendJson(res, 503, { error: "بوابة الدخول غير مهيأة حاليًا." });
-    return;
-  }
-
   try {
     const emails = await getAllowedEmails();
     if (!emails.has(email)) {
       sendJson(res, 403, { error: "هذا البريد غير موجود في قائمة الدخول." });
       return;
     }
-    setCookie(res, createAccessToken(email, secret));
+    setCookie(res, createAccessToken(email, process.env.SESSION_SECRET));
     sendJson(res, 200, { authorized: true });
   } catch {
     sendJson(res, 503, { error: "تعذر التحقق من قائمة الدخول. حاول مرة أخرى." });

@@ -37,3 +37,14 @@ test("signed access sessions expire and reject tampering or a different signing 
   const altered = `${payload}.${signature[0] === "a" ? "b" : "a"}${signature.slice(1)}`;
   assert.equal(readAccessToken(altered, "test-only-secret", 1_001), null);
 });
+
+test("portable unsigned access sessions work without a host secret and expire", () => {
+  const token = createAccessToken("person@example.test", undefined, 1_000);
+  assert.match(token, /^u\./);
+  assert.deepEqual(
+    readAccessToken(token, undefined, 1_001),
+    { email: "person@example.test", expiresAt: 1_000 + ACCESS_SESSION_TTL_MS },
+  );
+  assert.equal(readAccessToken(token, undefined, 1_000 + ACCESS_SESSION_TTL_MS), null);
+  assert.equal(readAccessToken("u.not-json", undefined, 1_001), null);
+});
