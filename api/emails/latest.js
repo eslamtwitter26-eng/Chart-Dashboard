@@ -1,3 +1,5 @@
-import app from "../../artifacts/api-server/dist/vercel-handler.mjs";
+import { proxyToReplitApi } from "../../vercel/replit-api-proxy.js";
 
-export default app;
+export default function handler(req, res) {
+  return proxyToReplitApi(req, res, "/emails/latest");
+}
