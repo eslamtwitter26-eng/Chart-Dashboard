@@ -22,6 +22,8 @@ import type {
 import type {
   AccessEmailRequest,
   AccessStatus,
+  BinanceKlinesResponse,
+  GetBinanceKlinesParams,
   GetGoldHistoryParams,
   GetPaxgKlinesParams,
   GoldHistory,
@@ -451,6 +453,90 @@ export function useGetPaxgKlines<TData = Awaited<ReturnType<typeof getPaxgKlines
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPaxgKlinesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBinanceKlinesUrl = (params: GetBinanceKlinesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/gold/binance/klines?${stringifiedParams}` : `/api/gold/binance/klines`
+}
+
+/**
+ * @summary Fetch allowlisted Binance spot or futures candles through the authenticated server
+ */
+export const getBinanceKlines = async (params: GetBinanceKlinesParams, options?: Parameters<typeof customFetch>[1]): Promise<BinanceKlinesResponse> => {
+
+  return customFetch<BinanceKlinesResponse>(getGetBinanceKlinesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBinanceKlinesQueryKey = (params?: GetBinanceKlinesParams,) => {
+    return [
+    `/api/gold/binance/klines`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBinanceKlinesQueryOptions = <TData = Awaited<ReturnType<typeof getBinanceKlines>>, TError = ErrorType<void>>(params: GetBinanceKlinesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBinanceKlines>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBinanceKlinesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBinanceKlines>>> = ({ signal }) => getBinanceKlines(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBinanceKlines>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBinanceKlinesQueryResult = NonNullable<Awaited<ReturnType<typeof getBinanceKlines>>>
+export type GetBinanceKlinesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Fetch allowlisted Binance spot or futures candles through the authenticated server
+ */
+
+export function useGetBinanceKlines<TData = Awaited<ReturnType<typeof getBinanceKlines>>, TError = ErrorType<void>>(
+ params: GetBinanceKlinesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBinanceKlines>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBinanceKlinesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
