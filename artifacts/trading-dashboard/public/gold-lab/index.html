@@ -977,19 +977,16 @@ html[data-theme="light"] { --mute2: #5d6270; }
 
   var THEME = "dark";
   try { THEME = localStorage.getItem("gold-theme") === "light" ? "light" : "dark"; } catch (e) {}
+  try {
+    var parentTheme = new URLSearchParams(location.search).get("theme");
+    if (parentTheme === "dark" || parentTheme === "light") THEME = parentTheme;
+  } catch (e) {}
   document.documentElement.setAttribute("data-theme", THEME);
 
   var SYMBOL = SYM.sp || "";
-  var REST_HOSTS = [
-    { url: "/api/gold/binance/klines", proxy: true },
-    "https://data-api.binance.vision",
-    "https://api.binance.com"
-  ];
+  var REST_HOSTS = ["https://data-api.binance.vision", "https://api.binance.com"];
   var WS_HOSTS = ["wss://data-stream.binance.vision", "wss://stream.binance.com:9443"];
-  var FUT_REST = [
-    { url: "/api/gold/binance/klines", proxy: true },
-    "https://fapi.binance.com"
-  ], FUT_WS = ["wss://fstream.binance.com"];
+  var FUT_REST = ["https://fapi.binance.com"], FUT_WS = ["wss://fstream.binance.com"];
 
   // Ordered from the largest frame down to one minute.
   var TFS = [
@@ -1152,38 +1149,48 @@ html[data-theme="light"] { --mute2: #5d6270; }
     });
   }
   function binanceRaw(interval, endTime, limit, startTime) {
-    var tries = 0, fut = SRC.id === "bfut", hosts = fut ? FUT_REST : REST_HOSTS;
+    var tries = 0, fut = SRC.id === "bfut";
+    var hosts = ["/api/gold/binance/klines"].concat(fut ? FUT_REST : REST_HOSTS);
     function attempt() {
-      var source = hosts[restIdx % hosts.length], host = typeof source === "string" ? source : source.url;
-      var proxy = typeof source !== "string" && source.proxy;
-      var params = new URLSearchParams({
-        interval: interval,
-        limit: String(limit || 1000),
-        ...(proxy ? { market: fut ? "futures" : "spot", symbol: (fut ? SYM.bf : SYMBOL).toUpperCase() } : { symbol: (fut ? SYM.bf : SYMBOL).toUpperCase() }),
-        ...(startTime ? { startTime: String(startTime) } : {}),
-        ...(endTime ? { endTime: String(endTime) } : {})
-      });
-      var url = proxy
-        ? host + "?" + params.toString()
-        : host + (fut ? "/fapi/v1/klines?" : "/api/v3/klines?") + params.toString();
+      var host = hosts[restIdx % hosts.length];
+      var isProxy = host.charAt(0) === "/";
+      var symbol = fut ? SYM.bf : SYMBOL.toUpperCase();
+      var query = "symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(interval) + "&limit=" + (limit || 1000);
+      if (isProxy) query = "market=" + (fut ? "futures" : "spot") + "&" + query;
+      if (startTime) query += "&startTime=" + startTime;
+      if (endTime) query += "&endTime=" + endTime;
+      var url = isProxy
+        ? host + "?" + query
+        : host + (fut ? "/fapi/v1/klines?" : "/api/v3/klines?") + query;
       var controller = new AbortController();
-      var timer = setTimeout(function () { controller.abort(); }, proxy ? 7500 : 4500);
-      return fetch(url, { signal: controller.signal, cache: "no-store" }).then(function (r) {
+      var timeout = setTimeout(function () { controller.abort(); }, isProxy ? 7500 : 4500);
+      return fetch(url, { cache: "no-store", signal: controller.signal }).then(function (r) {
         if (!r.ok) throw new Error("http " + r.status);
         return r.json();
-      }).then(function (payload) {
-        var rows = proxy ? payload && payload.bars : payload;
+      }).then(function (rows) {
+        if (isProxy) {
+          if (!rows || !Array.isArray(rows.bars)) throw new Error("bad proxy response");
+          return rows.bars.map(function (bar) {
+            return {
+              time: Math.floor(Number(bar.openTime) / 1000),
+              open: +bar.open,
+              high: +bar.high,
+              low: +bar.low,
+              close: +bar.close,
+              volume: +bar.volume || 0,
+              bv: NaN
+            };
+          });
+        }
         if (!Array.isArray(rows)) throw new Error("bad response");
-        return proxy ? rows.map(function (b) {
-          return { time: Math.floor(+b.openTime / 1000), open: +b.open, high: +b.high, low: +b.low, close: +b.close, volume: +b.volume, bv: NaN };
-        }) : rows.map(toBar);
-      }).finally(function () {
-        clearTimeout(timer);
+        return rows.map(toBar);
       }).catch(function (err) {
         tries++;
         restIdx++;
         if (tries >= hosts.length) throw err;
         return attempt();
+      }).finally(function () {
+        clearTimeout(timeout);
       });
     }
     return attempt();

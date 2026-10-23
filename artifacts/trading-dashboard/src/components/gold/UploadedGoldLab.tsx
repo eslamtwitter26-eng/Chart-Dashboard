@@ -16,7 +16,7 @@ export function UploadedGoldLab({ theme }: { theme: "dark" | "light" }) {
   return (
     <iframe
       ref={frame}
-      title="Gold Lab — PAXG/USDT"
+      title="Gold Lab"
       data-testid="gold-lab-uploaded"
       src={initialSrc.current}
       onLoad={sendTheme}
