@@ -75,6 +75,62 @@ export interface PaxgKlinesResponse {
   bars: PaxgKline[];
 }
 
+export type BinanceKlinesResponseSymbol = typeof BinanceKlinesResponseSymbol[keyof typeof BinanceKlinesResponseSymbol];
+
+
+export const BinanceKlinesResponseSymbol = {
+  XAUUSDT: 'XAUUSDT',
+  XAGUSDT: 'XAGUSDT',
+  BTCUSDT: 'BTCUSDT',
+  PAXGUSDT: 'PAXGUSDT',
+} as const;
+
+export type BinanceKlinesResponseMarket = typeof BinanceKlinesResponseMarket[keyof typeof BinanceKlinesResponseMarket];
+
+
+export const BinanceKlinesResponseMarket = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type BinanceKlinesResponseInterval = typeof BinanceKlinesResponseInterval[keyof typeof BinanceKlinesResponseInterval];
+
+
+export const BinanceKlinesResponseInterval = {
+  '1m': '1m',
+  '3m': '3m',
+  '5m': '5m',
+  '15m': '15m',
+  '30m': '30m',
+  '1h': '1h',
+  '2h': '2h',
+  '4h': '4h',
+  '6h': '6h',
+  '8h': '8h',
+  '12h': '12h',
+  '1d': '1d',
+  '3d': '3d',
+  '1w': '1w',
+  '1M': '1M',
+} as const;
+
+export interface BinanceKline {
+  /** Binance candle opening time in milliseconds since Unix epoch */
+  openTime: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface BinanceKlinesResponse {
+  symbol: BinanceKlinesResponseSymbol;
+  market: BinanceKlinesResponseMarket;
+  interval: BinanceKlinesResponseInterval;
+  bars: BinanceKline[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -122,6 +178,64 @@ export type GetPaxgKlinesInterval = typeof GetPaxgKlinesInterval[keyof typeof Ge
 
 
 export const GetPaxgKlinesInterval = {
+  '1m': '1m',
+  '3m': '3m',
+  '5m': '5m',
+  '15m': '15m',
+  '30m': '30m',
+  '1h': '1h',
+  '2h': '2h',
+  '4h': '4h',
+  '6h': '6h',
+  '8h': '8h',
+  '12h': '12h',
+  '1d': '1d',
+  '3d': '3d',
+  '1w': '1w',
+  '1M': '1M',
+} as const;
+
+export type GetBinanceKlinesParams = {
+market: GetBinanceKlinesMarket;
+symbol: GetBinanceKlinesSymbol;
+interval: GetBinanceKlinesInterval;
+/**
+ * @minimum 1
+ * @maximum 1000
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+startTime?: number;
+/**
+ * @minimum 0
+ */
+endTime?: number;
+};
+
+export type GetBinanceKlinesMarket = typeof GetBinanceKlinesMarket[keyof typeof GetBinanceKlinesMarket];
+
+
+export const GetBinanceKlinesMarket = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type GetBinanceKlinesSymbol = typeof GetBinanceKlinesSymbol[keyof typeof GetBinanceKlinesSymbol];
+
+
+export const GetBinanceKlinesSymbol = {
+  XAUUSDT: 'XAUUSDT',
+  XAGUSDT: 'XAGUSDT',
+  BTCUSDT: 'BTCUSDT',
+  PAXGUSDT: 'PAXGUSDT',
+} as const;
+
+export type GetBinanceKlinesInterval = typeof GetBinanceKlinesInterval[keyof typeof GetBinanceKlinesInterval];
+
+
+export const GetBinanceKlinesInterval = {
   '1m': '1m',
   '3m': '3m',
   '5m': '5m',

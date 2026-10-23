@@ -8,6 +8,15 @@
 
 export * from './accessEmailRequest';
 export * from './accessStatus';
+export * from './binanceKline';
+export * from './binanceKlinesResponse';
+export * from './binanceKlinesResponseInterval';
+export * from './binanceKlinesResponseMarket';
+export * from './binanceKlinesResponseSymbol';
+export * from './getBinanceKlinesInterval';
+export * from './getBinanceKlinesMarket';
+export * from './getBinanceKlinesParams';
+export * from './getBinanceKlinesSymbol';
 export * from './getGoldHistoryInterval';
 export * from './getGoldHistoryParams';
 export * from './getPaxgKlinesInterval';

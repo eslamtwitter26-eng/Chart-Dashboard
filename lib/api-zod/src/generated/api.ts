@@ -100,6 +100,42 @@ export const GetPaxgKlinesResponse = zod.object({
 
 
 /**
+ * @summary Fetch allowlisted Binance spot or futures candles through the authenticated server
+ */
+export const getBinanceKlinesQueryLimitDefault = 1000;
+export const getBinanceKlinesQueryLimitMax = 1000;
+
+export const getBinanceKlinesQueryStartTimeMin = 0;
+
+export const getBinanceKlinesQueryEndTimeMin = 0;
+
+
+
+export const GetBinanceKlinesQueryParams = zod.object({
+  "market": zod.enum(['spot', 'futures']),
+  "symbol": zod.enum(['XAUUSDT', 'XAGUSDT', 'BTCUSDT', 'PAXGUSDT']),
+  "interval": zod.enum(['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']),
+  "limit": zod.coerce.number().int().min(1).max(getBinanceKlinesQueryLimitMax).default(getBinanceKlinesQueryLimitDefault),
+  "startTime": zod.coerce.number().int().min(getBinanceKlinesQueryStartTimeMin).optional(),
+  "endTime": zod.coerce.number().int().min(getBinanceKlinesQueryEndTimeMin).optional()
+})
+
+export const GetBinanceKlinesResponse = zod.object({
+  "symbol": zod.enum(['XAUUSDT', 'XAGUSDT', 'BTCUSDT', 'PAXGUSDT']),
+  "market": zod.enum(['spot', 'futures']),
+  "interval": zod.enum(['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']),
+  "bars": zod.array(zod.object({
+  "openTime": zod.number().int().describe('Binance candle opening time in milliseconds since Unix epoch'),
+  "open": zod.number(),
+  "high": zod.number(),
+  "low": zod.number(),
+  "close": zod.number(),
+  "volume": zod.number()
+}))
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
