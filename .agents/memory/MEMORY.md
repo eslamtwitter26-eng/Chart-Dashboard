@@ -3,7 +3,7 @@
 - [TradingView study verification](tradingview-study-verification.md) — verify selected indicators in the rendered widget; valid controls and encoded URLs do not prove studies load.
 - [Analysis data scope](analysis-data-scope.md) — keep existing TradingView charts intact; independent prices are approved only for the separate gold chart.
 - [Gold provider quality](gold-provider-quality.md) — legacy Twelve Data anomalies; do not apply spot-gold weekend filtering to the replacement Binance token market.
-- [Gold workspace interactions](gold-workspace-interactions.md) — supplied HTML supersedes earlier native chart choices; changes remain scoped to Gold Lab.
+- [Gold workspace interactions](gold-workspace-interactions.md) — supplied HTML is authoritative; keep changes scoped, and distinguish confirmed scanner results from live forming overlays.
 - [Manual email allowlist](email-allowlist.md) — Only manually listed emails pass the gate; a public email list does not prove who entered an address.
 - [Trading Central report selection](trading-central-report-selection.md) — prioritize recent Technical Analysis emails and ignore messages that yield no asset cards.
 - [Vercel hosting boundaries](vercel-hosting-boundaries.md) — Replit connector-backed Gmail and Replit secrets do not transfer to Vercel automatically.

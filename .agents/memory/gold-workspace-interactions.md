@@ -32,3 +32,9 @@ If Binance requests from the browser stall, proxy the same PAXG/USDT feed throug
 **Why:** The supplied Gold Lab uses Binance PAXG/USDT, but browser cross-origin requests may hang even when the server can reach Binance.
 
 **How to apply:** Keep the source, symbol and candle values unchanged; use server-side access control, validate upstream OHLC, and show a finite loading/error state.
+
+Scanner results and automatic alerts must use provider-confirmed completed candles. Live chart overlays may update on the active candle, but must remain provisional; rule-match scores are not empirical win probabilities.
+
+**Why:** The user wants the analytical tools to behave reliably like a professional chart review; incomplete candles and unlabeled heuristic scores can imply more certainty than the data supports.
+
+**How to apply:** Keep this boundary inside Gold Lab. Preserve live chart updates, but do not use an unconfirmed bar for scanner/alert decisions or describe a rule-fit score as a success probability.
