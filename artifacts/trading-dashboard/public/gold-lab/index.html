@@ -502,6 +502,7 @@ html[data-theme="light"] .scalebtns button[aria-pressed="true"] { background: #1
 .scx { direction: rtl; display: flex; flex-direction: column; }
 .scf { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
 .scf .grow { flex: 1; }
+.scanwarn { padding: 8px 16px; border-bottom: 1px solid var(--line); color: var(--down); font-size: 12px; line-height: 1.6; }
 .scc { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; background: transparent; color: var(--mute); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; font: 500 13px/1 var(--font-ui); }
 .scc:hover { background: var(--hover); color: var(--fg); }
 .scc i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); opacity: .45; flex: none; }
@@ -1075,6 +1076,10 @@ html[data-theme="light"] { --mute2: #5d6270; }
   function toBar(k) {
     return { time: Math.floor(k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5], bv: k[9] != null ? +k[9] : NaN };
   }
+  function markBinanceBars(rows, historicalEnd) {
+    rows.forEach(function (b, i) { b.closed = !!historicalEnd || i < rows.length - 1; });
+    return rows;
+  }
   function paint(list) {
     candles.setData(list.map(function (b) { return { time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }; }));
     line.setData(list.map(function (b) { return { time: b.time, value: b.close }; }));
@@ -1111,10 +1116,10 @@ html[data-theme="light"] { --mute2: #5d6270; }
       j.candles.forEach(function (c) {
         if (!c.mid) return;
         var t = Math.floor(Date.parse(String(c.time).replace(/\.(\d{3})\d*Z$/, ".$1Z")) / 1000);
-        var b = { time: t, open: +c.mid.o, high: +c.mid.h, low: +c.mid.l, close: +c.mid.c, volume: +c.volume || 0, bv: NaN };
+        var b = { time: t, open: +c.mid.o, high: +c.mid.h, low: +c.mid.l, close: +c.mid.c, volume: +c.volume || 0, bv: NaN, closed: c.complete === true };
         if (n > 1) {
           var bt = Math.floor(t / sec) * sec, l = out[out.length - 1];
-          if (l && l.time === bt) { l.high = Math.max(l.high, b.high); l.low = Math.min(l.low, b.low); l.close = b.close; l.volume += b.volume; return; }
+          if (l && l.time === bt) { l.high = Math.max(l.high, b.high); l.low = Math.min(l.low, b.low); l.close = b.close; l.volume += b.volume; l.closed = b.closed; return; }
           b.time = bt;
         }
         out.push(b);
@@ -1170,7 +1175,7 @@ html[data-theme="light"] { --mute2: #5d6270; }
       }).then(function (rows) {
         if (isProxy) {
           if (!rows || !Array.isArray(rows.bars)) throw new Error("bad proxy response");
-          return rows.bars.map(function (bar) {
+          return markBinanceBars(rows.bars.map(function (bar) {
             return {
               time: Math.floor(Number(bar.openTime) / 1000),
               open: +bar.open,
@@ -1180,10 +1185,10 @@ html[data-theme="light"] { --mute2: #5d6270; }
               volume: +bar.volume || 0,
               bv: NaN
             };
-          });
+          }), endTime != null);
         }
         if (!Array.isArray(rows)) throw new Error("bad response");
-        return rows.map(toBar);
+        return markBinanceBars(rows.map(toBar), endTime != null);
       }).catch(function (err) {
         tries++;
         restIdx++;
@@ -1305,7 +1310,7 @@ html[data-theme="light"] { --mute2: #5d6270; }
 
   function applyKline(k) {
     if (!isOpenBar(Math.floor(k.t / 1000), tf)) return;
-    applyBar({ time: Math.floor(k.t / 1000), open: +k.o, high: +k.h, low: +k.l, close: +k.c, volume: +k.v, bv: k.V != null ? +k.V : NaN });
+    applyBar({ time: Math.floor(k.t / 1000), open: +k.o, high: +k.h, low: +k.l, close: +k.c, volume: +k.v, bv: k.V != null ? +k.V : NaN, closed: k.x === true });
   }
 
   function applyBar(b) {
@@ -1315,7 +1320,8 @@ html[data-theme="light"] { --mute2: #5d6270; }
       candles.update({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close });
       line.update({ time: b.time, value: b.close });
     } catch (e) { return; }
-    if (last && last.time === b.time) bars[bars.length - 1] = b; else { bars.push(b); ictHard = true; }
+    if (last && last.time === b.time) { if (last.closed === true) b.closed = true; bars[bars.length - 1] = b; }
+    else { bars.push(b); ictHard = true; }
     ictDirty = true;
     if (!document.querySelector(".chart-wrap:hover")) setLegend(b);
   }
@@ -4354,7 +4360,7 @@ html[data-theme="light"] { --mute2: #5d6270; }
   var HM_TYPES = ["Gartley", "Bat", "Alt Bat", "Butterfly", "Crab", "Deep Crab", "Cypher", "Shark", "5-0", "ABCD", "Three Drives"];
   var hmOn = false, hmList = [], hmSolo = "", hmUiSig = "";
   var hmType = {}, hmOpt = { bull: true, bear: true, done: true, forming: true, prz: true, targets: true, ratio: true, inner: true };
-  HM_TYPES.forEach(function (t) { hmType[t] = false; });
+  HM_TYPES.forEach(function (t) { hmType[t] = true; });
   try {
     var shm = JSON.parse(store.getItem("gold-hm") || "null");
     if (shm && UI2) {
@@ -4362,6 +4368,8 @@ html[data-theme="light"] { --mute2: #5d6270; }
       if (shm.opt) Object.keys(hmOpt).forEach(function (k) { if (typeof shm.opt[k] === "boolean") hmOpt[k] = shm.opt[k]; });
     }
   } catch (e) {}
+  // An all-off saved state made the Harmonic panel look broken; keep at least one usable default.
+  if (!HM_TYPES.some(function (t) { return hmType[t]; })) HM_TYPES.forEach(function (t) { hmType[t] = true; });
   function saveHm() { try { store.setItem("gold-hm", JSON.stringify({ type: hmType, opt: hmOpt })); } catch (e) {} }
   function hmTypeOf(n) { return n.indexOf("ABCD") === 0 ? "ABCD" : n; }
   function hmFiltered() {
@@ -6091,17 +6099,17 @@ html[data-theme="light"] { --mute2: #5d6270; }
   });
 
   /* ---------- Scanner: every school on every timeframe, each result with its validity percentage ---------- */
-  var scan = { only: null, run: false, stop: false, rows: [], done: 0, total: 0, fail: 0, at: 0, school: { elliott: true, harmonic: true, ict: true, msnr: true, classic: true, vp: true, ap: true }, min: 0, late: false };
+  var scan = { only: null, run: false, stop: false, rows: [], errors: [], frameErrors: [], done: 0, total: 0, fail: 0, at: 0, school: { elliott: true, harmonic: true, ict: true, msnr: true, classic: true, vp: true, ap: true }, min: 0, late: false };
   var scanPend = null;
   var SCAN_SCH = { elliott: ["Elliott", "#7aa2ff"], harmonic: ["Harmonic", "#c4a5ff"], ict: ["ICT", "#3fb68b"], msnr: ["MSNR", "#ffd166"], classic: ["Classic", "#ff9f43"], vp: ["Volume Profile", "#26c6da"], ap: ["R System", "#ffb703"] };
   var SCAN_TIP = {
-    elliott: "نسبة مطابقة العدّ لقواعد إليوت (إلزامية) وإرشاداته: نسب فيبوناتشي، تبادل 2/4، القناة، الامتداد، والبنية الداخلية للموجات",
-    harmonic: "مدى مطابقة نسب النموذج للنسب القياسية لكل نقطة (XAB, ABC, BCD, XAD)",
-    ict: "نسبة توافق عناصر ICT: كسر الهيكل BOS/CHoCH، Order Block، FVG، Premium/Discount، وهدف السيولة",
-    msnr: "نسبة توافق شروط MSNR: المستوى طازج، قرب السعر منه، وشمعة الابتلاع عنده",
-    ap: "نسبة اعتماد على قوة الدايفرجنس بين قمتي RSI ووجود سحب سيولة آسيا أو اليوم السابق، والإشارات القديمة تظهر مع نتيجتها",
-    vp: "نسبة توافق شروط الفوليوم بروفايل: موقع السعر من منطقة القيمة السابقة، رفض الحافة، وبعد الـPOC غير الملموس",
-    classic: "نسبة اكتمال شروط النموذج الكلاسيكي: تماثل القمم والكتوف، عدد لمسات الخطوط، التقارب، وتأكيد الاختراق"
+    elliott: "درجة مطابقة العدّ لقواعد إليوت وإرشاداته: نسب فيبوناتشي، تبادل 2/4، القناة، الامتداد، والبنية الداخلية. ليست احتمال ربح.",
+    harmonic: "درجة مطابقة نسب النموذج للنسب القياسية لكل نقطة (XAB, ABC, BCD, XAD). ليست احتمال ربح.",
+    ict: "درجة توافق عناصر ICT: كسر الهيكل BOS/CHoCH، Order Block، FVG، Premium/Discount، وهدف السيولة. ليست احتمال ربح.",
+    msnr: "درجة توافق شروط MSNR: المستوى طازج، قرب السعر منه، وشمعة الابتلاع عنده. ليست احتمال ربح.",
+    ap: "درجة اعتماد الإشارة على قوة الدايفرجنس بين قمتي RSI ووجود سحب سيولة آسيا أو اليوم السابق. ليست احتمال ربح.",
+    vp: "درجة توافق شروط الفوليوم بروفايل: موقع السعر من منطقة القيمة السابقة، رفض الحافة، وبعد الـPOC غير الملموس. ليست احتمال ربح.",
+    classic: "درجة اكتمال شروط النموذج الكلاسيكي: تماثل القمم والكتوف، عدد لمسات الخطوط، التقارب، وتأكيد الاختراق. ليست احتمال ربح."
   };
   var EW_STAT = { confirmed: "مؤكد", near: "قريب من التأكيد", pending: "بانتظار التأكيد" };
 
@@ -6263,19 +6271,34 @@ html[data-theme="light"] { --mute2: #5d6270; }
     if (why) { r.late = true; r.lateWhy = why; }
     if (r.age != null && r.age > 0) r.st += " · منذ " + r.age + " شمعة";
   }
-  function scanTf(k, list, into, only) {
+  function confirmedScanBars(list) {
+    return (list || []).filter(function (bar) { return bar && bar.closed === true; });
+  }
+  function scanTf(k, list, into, only, errorSink) {
     only = only || scan.only;
     into = into || scan.rows;
     var price = list[list.length - 1].close, atr = scanAtr(list);
     var SCH_OF = [["elliott", scanElliott], ["elliott", scanW4], ["harmonic", scanHarm], ["ict", scanICT], ["msnr", scanMS], ["classic", scanCL], ["vp", scanVP], ["ap", scanAP]];
-    SCH_OF.filter(function (e) { return !only || only[e[0]]; }).map(function (e) { return e[1]; }).forEach(function (fn) {
-      try { fn(list, k).forEach(function (r) { try { scanLate(r, price, atr); } catch (e) {} r.px = price; into.push(r); }); } catch (e) {}
+    errorSink = errorSink || (into === scan.rows ? scan.errors : null);
+    SCH_OF.filter(function (e) { return !only || only[e[0]]; }).forEach(function (entry) {
+      try {
+        var found = entry[1](list, k);
+        if (!Array.isArray(found)) throw new Error("المحرك لم يُرجع قائمة نتائج");
+        found.forEach(function (r) {
+          try { scanLate(r, price, atr); }
+          catch (e) { if (errorSink) errorSink.push({ school: entry[0], tf: k, stage: "تقييم حداثة الإشارة" }); }
+          r.px = price; into.push(r);
+        });
+      } catch (e) {
+        if (errorSink) errorSink.push({ school: entry[0], tf: k, stage: "تحليل" });
+        if (window.console && console.warn) console.warn("Gold Lab school scan failed:", entry[0], k, e);
+      }
     });
   }
   function scanRun(only) {
     if (scan.run) return;
     scan.only = only ? JSON.parse(JSON.stringify(only)) : null;
-    scan.run = true; scan.stop = false; scan.rows = []; scan.done = 0; scan.fail = 0; scan.total = TFS.length; scan.at = Date.now();
+    scan.run = true; scan.stop = false; scan.rows = []; scan.errors = []; scan.frameErrors = []; scan.done = 0; scan.fail = 0; scan.total = TFS.length; scan.at = Date.now();
     scanRender();
     var queue = TFS.map(function (t) { return t.k; }), inflight = 0;
     function fin() { scan.run = false; scan.at = Date.now(); scanRender(); }
@@ -6284,8 +6307,13 @@ html[data-theme="light"] { --mute2: #5d6270; }
       if (!k) { if (inflight === 0 && scan.run) fin(); return; }
       inflight++;
       fetchKlines(k, null, 800).then(function (list) {
-        if (list.length >= 40) scanTf(k, list); else scan.fail++;
-      }).catch(function () { scan.fail++; }).then(function () {
+        var closed = confirmedScanBars(list);
+        if (closed.length >= 40) scanTf(k, closed, scan.rows, null);
+        else { scan.fail++; scan.frameErrors.push(k); }
+      }).catch(function (error) {
+        scan.fail++; scan.frameErrors.push(k);
+        if (window.console && console.warn) console.warn("Gold Lab timeframe scan failed:", k, error);
+      }).then(function () {
         inflight--; scan.done++; scanRender(); next();
       });
     }
@@ -6314,7 +6342,7 @@ html[data-theme="light"] { --mute2: #5d6270; }
   /*WATCH-START*/
   // Auto-watch: scans every timeframe on a timer and alerts (browser notification, sound, Telegram) on fresh setups only.
   var W_DEF = { on: false, every: 5, min: 70, age: 3, frames: "all", notif: true, sound: true, hm: true, tg: false, tgTok: "", tgChat: "" };
-  var W = {}, wBusy = false, wTimer = null, wLast = 0, wLastN = 0, wLog = [], wSeen = {};
+  var W = {}, wBusy = false, wTimer = null, wLast = 0, wLastN = 0, wLastErrors = [], wLastFrameErrors = [], wLog = [], wSeen = {};
   Object.keys(W_DEF).forEach(function (k) { W[k] = W_DEF[k]; });
   try {
     var w0 = JSON.parse(localStorage.getItem("gold-watch") || "null");
@@ -6344,7 +6372,7 @@ html[data-theme="light"] { --mute2: #5d6270; }
       if (fund.on) { try { var e = fundEval(p); if (e.ok) { lines.push(e.lots.toFixed(2) + " لوت · أقصى خسارة " + fmtUsd(e.risk) + " (" + e.riskPct.toFixed(2) + "% من الحساب) · ربح متوقع " + fmtUsd(e.reward)); lines.push("المتبقي من حد اليوم " + fmtUsd(Math.max(0, e.B.remD)) + " · من الحد الكلي " + fmtUsd(Math.max(0, e.B.remT))); } } catch (x) {} }
     }
     if (r.tgs && r.tgs.length) lines.push("الأهداف المحتملة: " + r.tgs.map(function (v) { return fmt(v); }).join(" ← "));
-    lines.push("الصحة " + r.pct + "%" + (r.st ? " · " + r.st : ""));
+    lines.push("مطابقة القواعد " + r.pct + "% — درجة آلية وليست احتمال ربح" + (r.st ? " · " + r.st : ""));
     return lines.join("\n");
   }
   function wTelegram(text, test) {
@@ -6366,7 +6394,7 @@ html[data-theme="light"] { --mute2: #5d6270; }
       "<div class='ss'>" + (r.st || "") + (r.school === "harmonic" || r.school === "elliott" ? " · انعكاس محتمل " + (up ? "للأعلى" : "للأسفل") : "") + "</div>" +
       (p ? "<div class='sg'><div class='e'><small>الدخول</small><b>" + fmt(p.entry) + "</b></div><div class='l'><small>الوقف</small><b>" + fmt(p.sl) + "</b></div><div class='t'><small>الهدف</small><b>" + fmt(p.tp) + "</b></div></div><div class='ss'>RR " + rr.toFixed(1) + (lots ? " · " + lots : "") + "</div>" : "") +
       (r.tgs && r.tgs.length ? "<div class='ss'>الأهداف المحتملة: <b style='color:var(--up)'>" + r.tgs.map(function (v) { return fmt(v); }).join(" ← ") + "</b></div>" : "") +
-      "<div class='hb' title='صحة الإشارة'><i style='width:" + Math.min(100, r.pct) + "%'></i></div><div class='ss'>الصحة " + r.pct + "%</div>" +
+      "<div class='hb' title='درجة مطابقة القواعد، وليست احتمال ربح'><i style='width:" + Math.min(100, r.pct) + "%'></i></div><div class='ss'>مطابقة القواعد " + r.pct + "%</div>" +
       "<div class='sa'><button type='button' class='pri' data-a='go'>اعرضها على الشارت</button>" + (compact ? "" : "<button type='button' data-a='keep'>حفظ في السجل</button>") + "</div>";
     el.addEventListener("click", function (ev) {
       var b = ev.target.closest("button"); if (!b) return;
@@ -6424,10 +6452,11 @@ html[data-theme="light"] { --mute2: #5d6270; }
   function watchRun() {
     if (wBusy || scan.run || (typeof rp !== "undefined" && rp.state === "on")) return Promise.resolve([]);
     wBusy = true;
-    var ids = W.frames === "all" ? TFS.map(function (t) { return t.k; }) : W_FR[W.frames].slice(), rows = [], inflight = 0;
+    var ids = W.frames === "all" ? TFS.map(function (t) { return t.k; }) : W_FR[W.frames].slice(), rows = [], errors = [], frameErrors = [], inflight = 0;
     return new Promise(function (resolve) {
       function done() {
         wBusy = false; wLast = Date.now();
+        wLastErrors = errors; wLastFrameErrors = frameErrors;
         var now = Date.now(), fresh = rows.filter(wPass), sent = [];
         Object.keys(wSeen).forEach(function (k) { if (now - wSeen[k] > 86400000) delete wSeen[k]; });
         fresh.sort(function (a, c) { return c.pct - a.pct; }).forEach(function (r) {
@@ -6446,7 +6475,14 @@ html[data-theme="light"] { --mute2: #5d6270; }
         var k = ids.shift();
         if (!k) { if (inflight === 0) done(); return; }
         inflight++;
-        fetchKlines(k, null, 800).then(function (list) { if (list.length >= 40) scanTf(k, list, rows, fund.on ? fund.sch : null); }).catch(function () {}).then(function () { inflight--; next(); });
+        fetchKlines(k, null, 800).then(function (list) {
+          var closed = confirmedScanBars(list);
+          if (closed.length >= 40) scanTf(k, closed, rows, fund.on ? fund.sch : null, errors);
+          else frameErrors.push(k);
+        }).catch(function (error) {
+          frameErrors.push(k);
+          if (window.console && console.warn) console.warn("Gold Lab watch timeframe failed:", k, error);
+        }).then(function () { inflight--; next(); });
       }
       next(); next(); next();
     });
@@ -6459,7 +6495,8 @@ html[data-theme="light"] { --mute2: #5d6270; }
   }
   function wRenderStatus() {
     var el = $("wst"); if (!el) return;
-    el.textContent = W.on ? (wBusy ? "جارٍ الفحص…" : wLast ? "آخر فحص " + new Date(wLast).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) + " · صفقات حديثة الآن: " + wLastN : "يعمل") : "متوقف";
+    el.textContent = W.on ? (wBusy ? "جارٍ الفحص…" : wLast ? "آخر فحص " + new Date(wLast).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) + " · صفقات حديثة الآن: " + wLastN + (wLastErrors.length || wLastFrameErrors.length ? " · أخطاء تحليل/بيانات: " + (wLastErrors.length + wLastFrameErrors.length) : "") : "يعمل") : "متوقف";
+    el.title = schoolErrorSummary(wLastErrors, 5) + (wLastFrameErrors.length ? (wLastErrors.length ? " | " : "") + "تعذر تحميل: " + wLastFrameErrors.map(function (k) { return TV_LBL[k] || k; }).join("، ") : "");
     var lg = $("wlog");
     if (lg) lg.innerHTML = wLog.length ? wLog.slice(0, 12).map(function (x, i) { return "<button type='button' class='wlrow' data-i='" + i + "'><b>" + new Date(x.t).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) + "</b> " + x.title + "<small>" + x.name + "</small></button>"; }).join("") : "<div class='hint'>لا توجد تنبيهات بعد</div>";
   }
@@ -6472,7 +6509,7 @@ html[data-theme="light"] { --mute2: #5d6270; }
       "<div class='seg' id='w-on'><button type='button' data-v='1'>تشغيل</button><button type='button' data-v='0'>إيقاف</button></div>" +
       "<div><label>الفحص كل</label><div class='seg' id='w-every'><button type='button' data-v='1'>دقيقة</button><button type='button' data-v='5'>5 دقائق</button><button type='button' data-v='15'>15 دقيقة</button></div></div>" +
       "<div><label>الفريمات</label><div class='seg' id='w-fr'><button type='button' data-v='all'>الكل</button><button type='button' data-v='scalp'>1د–15د</button><button type='button' data-v='intra'>30د–4س</button><button type='button' data-v='swing'>6س+</button></div></div>" +
-      "<div><label>أدنى صحة للتنبيه</label><div class='seg' id='w-min'><button type='button' data-v='0'>الكل</button><button type='button' data-v='60'>60%</button><button type='button' data-v='70'>70%</button><button type='button' data-v='80'>80%</button></div></div>" +
+      "<div><label>أدنى مطابقة للقواعد للتنبيه</label><div class='seg' id='w-min'><button type='button' data-v='0'>الكل</button><button type='button' data-v='60'>60%</button><button type='button' data-v='70'>70%</button><button type='button' data-v='80'>80%</button></div></div>" +
       "<div><label>أقصى عمر للإشارة (شموع)</label><div class='seg' id='w-age'><button type='button' data-v='1'>1</button><button type='button' data-v='3'>3</button><button type='button' data-v='6'>6</button></div></div>" +
       "<div><label>طريقة التنبيه</label><div class='seg' id='w-ch'><button type='button' data-v='notif'>إشعار المتصفح</button><button type='button' data-v='sound'>صوت</button><button type='button' data-v='tg'>تليجرام</button></div></div><div><label>النماذج الهارمونيك</label><div class='seg' id='w-hmg'><button type='button' data-v='hm'>تنبيه فوري لكل نموذج أو موجات تكتمل (هارمونيك / إليوت) بدون حد صحة</button></div></div>" +
       "<div class='wfund'><label>الحساب الممول</label><div class='seg' id='w-fund'><button type='button' data-v='1'>اتبع حسابي الممول</button><button type='button' data-v='0'>بدون</button></div><div class='fchips' id='w-fsch' style='margin-top:8px'></div><div class='hint' id='w-fsum'></div><div class='row' style='margin-top:6px'><button type='button' id='w-fedit'>تعديل بيانات الحساب</button></div></div>" +
@@ -6545,8 +6582,8 @@ html[data-theme="light"] { --mute2: #5d6270; }
     var p = tvPop("scanp");
     p.classList.add("scanp");
     p.innerHTML =
-      "<div class='scx'><div class='ph'><div class='pt'><b>سكان الشارت</b><span id='scan-prog'></span></div><button type='button' class='btn ghost' id='scan-watch'>رصد تلقائي</button><button type='button' class='btn' id='scan-go'>ابدأ السكان</button></div>" +
-      "<div class='scf' id='scan-f'></div><div class='sctab' aria-hidden='true'><span>المدرسة</span><span>النموذج</span><span style='text-align:center'>الفريم</span><span style='text-align:center'>الاتجاه</span><span>الحالة</span><span style='text-align:left'>الصحة</span></div><div class='scl' id='scan-list'></div></div>";
+      "<div class='scx'><div class='ph'><div class='pt'><b>سكان الشارت</b><span id='scan-prog'></span></div><button type='button' class='btn ghost' id='scan-watch'>رصد تلقائي</button><button type='button' class='btn' id='scan-go'>ابدأ السكان</button></div><div class='scanwarn' style='color:var(--mute)'>السكان والتنبيهات الآلية يعتمدان على الشموع المكتملة؛ الإشارات على الشمعة الحالية تظل قيد التكوين.</div>" +
+      "<div class='scf' id='scan-f'></div><div class='scanwarn' id='scan-errors' hidden></div><div class='sctab' aria-hidden='true'><span>المدرسة</span><span>النموذج</span><span style='text-align:center'>الفريم</span><span style='text-align:center'>الاتجاه</span><span>الحالة</span><span style='text-align:left'>مطابقة القواعد</span></div><div class='scl' id='scan-list'></div></div>";
     p.addEventListener("click", function (ev) {
       ev.stopPropagation();
       if (ev.target.closest("#scan-watch")) { window.wOpen(); return; }
@@ -6559,12 +6596,30 @@ html[data-theme="light"] { --mute2: #5d6270; }
     });
     $("tv-scan").addEventListener("click", function (ev) { ev.stopPropagation(); tvOpen(p, $("tv-scan")); if (!p.hidden && !scan.rows.length && !scan.run) scanRun(); scanRender(); });
   }
+  function schoolErrorSummary(errors, limit) {
+    var seen = {}, keys = [];
+    (errors || []).forEach(function (e) {
+      var key = e.school + "|" + e.tf;
+      if (!seen[key]) { seen[key] = true; keys.push(key); }
+    });
+    var shown = keys.slice(0, limit || 4).map(function (key) {
+      var p = key.split("|");
+      return (SCAN_SCH[p[0]] ? SCAN_SCH[p[0]][0] : p[0]) + " · " + (TV_LBL[p[1]] || p[1]);
+    });
+    if (keys.length > shown.length) shown.push("و" + (keys.length - shown.length) + " أخرى");
+    return shown.join("، ");
+  }
   function scanRender() {
     var p = $("scanp");
     if (!p) return;
     $("scan-go").textContent = scan.run ? "إيقاف" : (scan.rows.length ? "إعادة السكان" : "ابدأ السكان");
     $("scan-go").classList.toggle("ghost", scan.run);
-    $("scan-prog").textContent = scan.run ? "جارٍ فحص الفريمات: " + scan.done + " من " + scan.total : (scan.at ? scan.rows.length + " نتيجة على " + (scan.total - scan.fail) + " فريم" + (scan.fail ? " (تعذر تحميل " + scan.fail + ")" : "") : "فحص كل المدارس على كل الفريمات");
+    $("scan-prog").textContent = scan.run ? "جارٍ فحص الفريمات: " + scan.done + " من " + scan.total : (scan.at ? scan.rows.length + " نتيجة على " + (scan.total - scan.fail) + " فريم" + (scan.fail ? " · تعذر تحميل " + scan.fail : "") + (scan.errors.length ? " · أخطاء محركات " + scan.errors.length : "") : "فحص كل المدارس على كل الفريمات");
+    var warning = $("scan-errors"), warningText = [];
+    if (scan.frameErrors.length) warningText.push("تعذر تحميل بيانات: " + scan.frameErrors.map(function (k) { return TV_LBL[k] || k; }).join("، "));
+    if (scan.errors.length) warningText.push("أخطاء في محركات التحليل: " + schoolErrorSummary(scan.errors, 6));
+    warning.textContent = warningText.join(" | ");
+    warning.hidden = !warningText.length;
     var cnt = {};
     var nLate = 0;
     scan.rows.forEach(function (r) { if (r.late) nLate++; if (!r.late || scan.late) cnt[r.school] = (cnt[r.school] || 0) + 1; });
@@ -6572,14 +6627,14 @@ html[data-theme="light"] { --mute2: #5d6270; }
     Object.keys(SCAN_SCH).forEach(function (k) {
       f += "<button type='button' class='scc' data-k='" + k + "' aria-pressed='" + scan.school[k] + "' style='--c:" + SCAN_SCH[k][1] + "'><i></i>" + SCAN_SCH[k][0] + " <em>" + (cnt[k] || 0) + "</em></button>";
     });
-    f += "<span class='grow'></span><button type='button' class='scc' data-k='late' aria-pressed='" + scan.late + "' title='نتائج تحرك السعر فيها بالفعل أو كسرت وقفها'>المتأخرة <em>" + nLate + "</em></button><button type='button' class='scc fl-min' data-k='min' aria-pressed='" + (scan.min > 0) + "' title='اضغط لتغيير الحد الأدنى للصحة'>الصحة: " + (scan.min ? "من " + scan.min + "% فأكثر" : "الكل") + "</button>";
+    f += "<span class='grow'></span><button type='button' class='scc' data-k='late' aria-pressed='" + scan.late + "' title='نتائج تحرك السعر فيها بالفعل أو كسرت وقفها'>المتأخرة <em>" + nLate + "</em></button><button type='button' class='scc fl-min' data-k='min' aria-pressed='" + (scan.min > 0) + "' title='اضغط لتغيير الحد الأدنى لمطابقة القواعد'>التطابق: " + (scan.min ? "من " + scan.min + "% فأكثر" : "الكل") + "</button>";
     $("scan-f").innerHTML = f;
     var rows = scanVisible(), h = "";
     rows.slice(0, 120).forEach(function (r, i) {
       var cl = r.pct >= 75 ? "hi" : r.pct >= 55 ? "mid" : "lo";
       h += "<button type='button' class='scrow' data-i='" + i + "'><span class='sc-s' style='--c:" + SCAN_SCH[r.school][1] + "'>" + SCAN_SCH[r.school][0] + "</span><span class='sc-n' dir='auto'>" + (r.nat ? "<span class='nat " + r.nat.cls + "'>" + r.nat.t + "</span>" : "") + r.name + (r.late ? " <span class='nat' title='" + r.lateWhy + "'>متأخرة</span>" : "") + "</span><span class='sc-t'>" + (TV_LBL[r.tf] || r.tf) + "</span><span class='sc-d " + (r.dir > 0 ? "up" : "down") + "'>" + (r.dir > 0 ? "شراء ▲" : "بيع ▼") + "</span><span class='sc-st'>" + (fund.on && r.plan ? fundShort(r) : (r.st || "")) + "</span><span class='sc-v " + cl + "' title='" + SCAN_TIP[r.school] + "'><b>" + r.pct + "%</b><i style='--w:" + r.pct + "%'></i></span></button>";
     });
-    if (!rows.length) h = "<div class='scempty'>" + (scan.run ? "جارٍ الفحص..." : scan.rows.length ? "لا نتائج بهذه الفلاتر" : "اضغط «ابدأ السكان» لفحص كل الفريمات") + "</div>";
+    if (!rows.length) h = "<div class='scempty'>" + (scan.run ? "جارٍ الفحص..." : scan.rows.length ? "لا نتائج بهذه الفلاتر" : scan.at ? (scan.errors.length || scan.fail ? "لم تكتمل بعض عمليات الفحص؛ راجع رسائل الأخطاء أعلاه." : "لم تُرصد نماذج تطابق الشروط الحالية على الفريمات المفحوصة.") : "اضغط «ابدأ السكان» لفحص كل الفريمات") + "</div>";
     $("scan-list").innerHTML = h;
     try { fundRender(); } catch (e) {}
   }
