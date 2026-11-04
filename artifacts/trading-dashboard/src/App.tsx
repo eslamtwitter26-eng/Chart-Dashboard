@@ -11,7 +11,7 @@ import { DailyDetail } from "./components/daily/DailyDetail";
 import { ColorsPanel, useDailyColors, colorVars } from "./components/daily/colors";
 import { reportDirection, type AssetCard, type DailyAnalysisTranslation, type EmailData } from "./components/daily/types";
 import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext } from "react";
-import { Languages, Minus, RefreshCw, Search, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Minus, RefreshCw, Search, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 
 // ─── Theme context ─────────────────────────────────────────────────────────────
 
@@ -961,17 +961,6 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
     }
   }, [data]);
 
-  const toggleTranslation = () => {
-    if (showArabic) {
-      setShowArabic(false);
-    } else if (translation) {
-      setShowArabic(true);
-      setTranslationError(null);
-    } else {
-      void translateReport();
-    }
-  };
-
   const isBusy = loading || refreshing;
 
   return (
@@ -1004,28 +993,6 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
           </span>
         )}
 
-        {data && data.cards.length > 0 && (
-          <button
-            className={`daily-translate-btn${showArabic ? " is-active" : ""}`}
-            data-testid="button-translate-daily-analysis"
-            onClick={toggleTranslation}
-            disabled={isBusy || translationLoading}
-            aria-pressed={showArabic}
-            aria-busy={translationLoading}
-            title="تُستخدم أرصدة الذكاء الاصطناعي عند الضغط؛ لا تُرسل الصور ولا يتغير المصدر الأصلي"
-          >
-            {translationLoading
-              ? <span className="daily-translate-spinner" aria-hidden="true" />
-              : <Languages size={14} />}
-            {translationLoading
-              ? "جارٍ الترجمة…"
-              : showArabic
-                ? "عرض النص الأصلي"
-                : translation
-                  ? "عرض الترجمة العربية"
-                  : "ترجمة التقرير للعربية"}
-          </button>
-        )}
         <ColorsPanel colors={colors} setColors={setColors} reset={reset} />
         <button
           className={`toolbar-icon-btn${refreshing ? " toolbar-icon-btn--spin" : ""}`}

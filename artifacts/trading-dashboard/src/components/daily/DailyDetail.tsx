@@ -125,11 +125,6 @@ export function DailyDetail({
                 {meta.date && <div className="et-meta-item"><span>{arabic ? "تاريخ التقرير" : "Report date"}</span><strong>{meta.date}</strong></div>}
                 {rec && <div className="et-meta-item"><span>{arabic ? "وقت الاستلام" : "Received"}</span><strong>{rec}</strong></div>}
               </section>
-              <p className="et-disclaimer">
-                {arabic
-                  ? "النص الأصلي من بريد Trading Central محفوظ دون تعديل. القراءة الإضافية تفسير للنص فقط وليست بيانات سوق مباشرة أو توصية استثمارية."
-                  : "Source analysis reproduced from the Trading Central email. Scenarios can change and are not a guarantee or an individualized recommendation."}
-              </p>
             </aside>
           </div>
         </div>
