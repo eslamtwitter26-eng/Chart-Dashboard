@@ -3,6 +3,8 @@ import type { NextFunction, Request, Response } from "express";
 
 export const ACCESS_COOKIE = "eg_access";
 export const ACCESS_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+// Increment to invalidate every previously issued access session across devices.
+const ACCESS_SESSION_GENERATION = 2;
 
 const ACCESS_LIST_URL =
   "https://docs.google.com/spreadsheets/d/1SRsnhQvf-tiME2tn6ipt6YZdp-jEb34NmL2ImXZZZ3s/gviz/tq?tqx=out:csv&sheet=%D8%B2%D8%B2";
@@ -62,6 +64,7 @@ export async function getAllowedEmails(): Promise<Set<string>> {
  */
 export function createAccessToken(email: string, secret?: string, now = Date.now()): string {
   const payload = Buffer.from(JSON.stringify({
+    generation: ACCESS_SESSION_GENERATION,
     email,
     expiresAt: now + ACCESS_SESSION_TTL_MS,
   })).toString("base64url");
@@ -98,9 +101,11 @@ export function readAccessToken(
 
   try {
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      generation?: unknown;
       email?: unknown;
       expiresAt?: unknown;
     };
+    if (parsed.generation !== ACCESS_SESSION_GENERATION) return null;
     const email = normalizeAllowedEmail(parsed.email);
     if (!email || typeof parsed.expiresAt !== "number" || parsed.expiresAt <= now) return null;
     return { email, expiresAt: parsed.expiresAt };

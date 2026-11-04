@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import {
   ACCESS_SESSION_TTL_MS,
   createAccessToken,
@@ -47,4 +48,16 @@ test("portable unsigned access sessions work without a host secret and expire", 
   );
   assert.equal(readAccessToken(token, undefined, 1_000 + ACCESS_SESSION_TTL_MS), null);
   assert.equal(readAccessToken("u.not-json", undefined, 1_001), null);
+});
+
+test("session generation invalidates previously issued signed and unsigned sessions", () => {
+  const legacyPayload = Buffer.from(JSON.stringify({
+    email: "person@example.test",
+    expiresAt: 1_000 + ACCESS_SESSION_TTL_MS,
+  })).toString("base64url");
+  const legacySigned = `${legacyPayload}.${createHmac("sha256", "test-only-secret").update(legacyPayload).digest("base64url")}`;
+  const legacyUnsigned = `u.${legacyPayload}`;
+
+  assert.equal(readAccessToken(legacySigned, "test-only-secret", 1_001), null);
+  assert.equal(readAccessToken(legacyUnsigned, undefined, 1_001), null);
 });
