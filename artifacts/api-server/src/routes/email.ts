@@ -2,7 +2,7 @@ import { Router } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { simpleParser } from "mailparser";
 import { extractAnalysisField } from "../lib/email-fields";
-import { findFirstEmailWithCards } from "../lib/email-selection";
+import { findLatestEmailWithCards } from "../lib/email-selection";
 import { logger } from "../lib/logger";
 import type { Response } from "express";
 
@@ -242,7 +242,7 @@ async function fetchAndParse(): Promise<ParsedEmail | null> {
     "from:tradingcentral newer_than:7d",
     'subject:"Trading Central" newer_than:7d',
   ];
-  const checkedIds = new Set<string>();
+  const candidateGroups: string[][] = [];
   for (const q of searchQueries) {
     const params = new URLSearchParams({ q, maxResults: "10" });
     const response = await connectors.proxy(
@@ -252,21 +252,16 @@ async function fetchAndParse(): Promise<ParsedEmail | null> {
     );
     if (!response.ok) throw new GmailConnectorError(response.status);
     const result = await response.json() as { messages?: Array<{ id?: string }> };
-    const messageIds: string[] = [];
-    for (const message of result.messages ?? []) {
-      const id = message.id;
-      if (id && !checkedIds.has(id)) {
-        checkedIds.add(id);
-        messageIds.push(id);
-      }
-    }
-    const analyzedEmail = await findFirstEmailWithCards(
-      messageIds,
-      messageId => parseMessage(connectors, messageId),
+    candidateGroups.push(
+      (result.messages ?? [])
+        .map(message => message.id)
+        .filter((id): id is string => Boolean(id)),
     );
-    if (analyzedEmail) return analyzedEmail;
   }
-  return null;
+  return findLatestEmailWithCards(
+    candidateGroups,
+    messageId => parseMessage(connectors, messageId),
+  );
 }
 
 async function getEmail(forceRefresh = false): Promise<ParsedEmail | null> {
