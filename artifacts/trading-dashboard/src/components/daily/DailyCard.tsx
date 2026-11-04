@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Maximize2, ImageOff, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { AssetCard } from "./types";
 import "./daily.css";
+import "./analysis-redesign.css";
 
 export function Direction({ dir }: { dir: AssetCard["direction"] }) {
   const Icon = dir === "bullish" ? TrendingUp : dir === "bearish" ? TrendingDown : Minus;
@@ -39,28 +40,65 @@ export function ChartBlock({ card, large }: { card: AssetCard; large?: boolean }
 
 export function DailyCard({ card, idx, onExpand }: { card: AssetCard; idx: number; onExpand: (c: AssetCard, el: HTMLElement) => void }) {
   return (
-    <article className={`dc dc--${card.direction}`} data-testid={`card-analysis-${card.id}`}
-      style={{ animationDelay: `${0.03 + idx * 0.04}s` }}>
-      <header className="dc-head">
-        <span className="dc-idx">{String(idx + 1).padStart(2, "0")}</span>
-        <div className="dc-title">
-          <h3>{card.assetName}</h3>
-          <span>{card.timeframe && card.timeframe !== "Not specified" ? card.timeframe : "Timeframe not specified"}</span>
+    <article className={`et-card dc--${card.direction}`} data-testid={`card-analysis-${card.id}`}
+      style={{ animationDelay: `${idx * 45}ms` }}>
+      <header className="et-card-header">
+        <span className="et-index">{String(idx + 1).padStart(2, "0")}</span>
+        <div className="et-identity">
+          <h2>{card.assetName}</h2>
+          <p>Intraday · {card.timeframe && card.timeframe !== "Not specified" ? card.timeframe : "Timeframe not specified"}</p>
         </div>
         <Direction dir={card.direction} />
-        <button className="dc-expand" data-testid={`button-expand-${card.id}`} aria-label={`Expand ${card.assetName} analysis`}
-          onClick={e => onExpand(card, e.currentTarget)}><Maximize2 size={13} /> Expand</button>
+        <button className="et-expand" data-testid={`button-expand-${card.id}`}
+          aria-label={`Expand full ${card.assetName} analysis`}
+          onClick={e => onExpand(card, e.currentTarget)}>
+          Full analysis <Maximize2 size={12} />
+        </button>
       </header>
-      <ChartBlock card={card} />
-      <div className="dc-body">
+
+      <div className="et-chart"><ChartBlock card={card} /></div>
+
+      <div className="et-levels">
         {card.pivot && (
-          <div className="dc-pivot"><h4>Pivot</h4><p>{card.pivot}</p></div>
+          <div className="et-level">
+            <span className="et-level-label">Pivot · key level</span>
+            <strong>{card.pivot}</strong>
+          </div>
         )}
-        <Field label="Watch" value={card.watchText} tone="dc-field--watch" />
-        <Field label="Our Preference" value={card.preference} />
-        <Field label="Alternative Scenario" value={card.alternative} />
-        <Field label="Comment" value={card.comment} tone="dc-field--comment" />
+        {card.watchText && (
+          <div className="et-watch">
+            <span className="et-level-label">Watch from report</span>
+            <p>{card.watchText}</p>
+          </div>
+        )}
       </div>
+
+      <div className="et-scenarios">
+        {card.preference && (
+          <section className="et-scenario">
+            <span className="et-section-label">Our preference</span>
+            <p>{card.preference}</p>
+          </section>
+        )}
+        {card.alternative && (
+          <section className="et-scenario et-scenario--alternative">
+            <span className="et-section-label">Alternative scenario</span>
+            <p>{card.alternative}</p>
+          </section>
+        )}
+      </div>
+
+      {card.comment && (
+        <section className="et-comment">
+          <span className="et-section-label">Trading Central commentary</span>
+          <p>{card.comment}</p>
+        </section>
+      )}
+
+      <footer className="et-card-footer">
+        <span className="et-source-label"><i className="et-source-mark" />Trading Central</span>
+        <span>{card.timeframe || "Report analysis"}</span>
+      </footer>
     </article>
   );
 }
