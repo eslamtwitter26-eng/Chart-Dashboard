@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { X, Mail, Calendar, Clock, Layers } from "lucide-react";
+import { X } from "lucide-react";
 import type { AssetCard, EmailData } from "./types";
 import { ChartBlock, Direction, Field } from "./DailyCard";
 import "./daily.css";
@@ -33,41 +33,73 @@ export function DailyDetail({ card, meta, style, returnTo, onClose }: {
   const rec = meta.receivedAt ? (isNaN(Date.parse(meta.receivedAt)) ? meta.receivedAt : new Date(meta.receivedAt).toLocaleString()) : "";
 
   return (
-    <div className="dd-scrim" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={box} className={`dd dc--${card.direction}`} style={style} role="dialog" aria-modal="true"
-        aria-labelledby="dd-title" data-testid="dialog-analysis-detail">
-        <header className="dd-head">
-          <div>
-            <h2 id="dd-title">{card.assetName}</h2>
-            <span className="dd-tf">{card.timeframe && card.timeframe !== "Not specified" ? card.timeframe : "Timeframe not specified"}</span>
+    <div className="et-scrim" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <section ref={box} className={`et-dialog dc--${card.direction}`} style={style} role="dialog" aria-modal="true"
+        aria-labelledby="et-dialog-title" data-testid="dialog-analysis-detail">
+        <header className="et-dialog-head">
+          <div className="et-dialog-head-main">
+            <span className="et-section-label">Trading Central · {meta.session}</span>
+            <h2 id="et-dialog-title">{card.assetName}</h2>
+            <p>Intraday analysis · {card.timeframe && card.timeframe !== "Not specified" ? card.timeframe : "Timeframe not specified"}</p>
           </div>
           <Direction dir={card.direction} />
-          <button className="dd-close" data-testid="button-close-detail" onClick={onClose} aria-label="Close detail view"><X size={16} /> Close <kbd>Esc</kbd></button>
+          <button className="et-close" data-testid="button-close-detail" onClick={onClose} aria-label="Close analysis details">
+            <X size={14} /> Close <kbd>Esc</kbd>
+          </button>
         </header>
-        <div className="dd-scroll">
-          <div className="dd-grid">
-            <div className="dd-main">
-              <ChartBlock card={card} large />
-              {card.pivot && <div className="dc-pivot dc-pivot--big"><h4>Pivot</h4><p>{card.pivot}</p></div>}
+
+        <div className="et-dialog-scroll">
+          <div className="et-detail-layout">
+            <div className="et-detail-visual">
+              <div className="et-chart"><ChartBlock card={card} large /></div>
             </div>
-            <div className="dd-text">
-              <Field label="Watch" value={card.watchText} tone="dc-field--watch" />
-              <Field label="Our Preference" value={card.preference} />
-              <Field label="Alternative Scenario" value={card.alternative} />
-              <Field label="Comment" value={card.comment} tone="dc-field--comment" />
-              <section className="dd-source" aria-label="Source email">
-                <h4>Source email</h4>
-                <dl>
-                  {meta.subject && <><dt><Mail size={12} /> Subject</dt><dd>{meta.subject}</dd></>}
-                  {meta.session && <><dt><Layers size={12} /> Session</dt><dd>{meta.session}</dd></>}
-                  {meta.date && <><dt><Calendar size={12} /> Date</dt><dd>{meta.date}</dd></>}
-                  {rec && <><dt><Clock size={12} /> Received</dt><dd>{rec}</dd></>}
-                </dl>
+            <aside className="et-detail-side">
+              {card.pivot && (
+                <section className="et-detail-pivot">
+                  <div>
+                    <span className="et-section-label">Pivot · key level</span>
+                    <span className="et-level-label">From the source report</span>
+                  </div>
+                  <strong>{card.pivot}</strong>
+                </section>
+              )}
+              {card.watchText && (
+                <section className="et-detail-watch">
+                  <span className="et-section-label">What the report says to watch</span>
+                  <p>{card.watchText}</p>
+                </section>
+              )}
+              {card.preference && (
+                <section className="et-detail-section et-detail-section--primary">
+                  <span className="et-section-label">Our preference</span>
+                  <p>{card.preference}</p>
+                </section>
+              )}
+              {card.alternative && (
+                <section className="et-detail-section">
+                  <span className="et-section-label">Alternative scenario</span>
+                  <p>{card.alternative}</p>
+                </section>
+              )}
+              {card.comment && (
+                <section className="et-detail-section et-detail-section--comment">
+                  <span className="et-section-label">Analyst commentary</span>
+                  <p>{card.comment}</p>
+                </section>
+              )}
+              <section className="et-source-meta" aria-label="Source report information">
+                {meta.subject && <div className="et-meta-item"><span>Email subject</span><strong>{meta.subject}</strong></div>}
+                {meta.session && <div className="et-meta-item"><span>Session</span><strong>{meta.session}</strong></div>}
+                {meta.date && <div className="et-meta-item"><span>Report date</span><strong>{meta.date}</strong></div>}
+                {rec && <div className="et-meta-item"><span>Received</span><strong>{rec}</strong></div>}
               </section>
-            </div>
+              <p className="et-disclaimer">
+                Source analysis reproduced from the Trading Central email. Scenarios can change and are not a guarantee or an individualized recommendation.
+              </p>
+            </aside>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
