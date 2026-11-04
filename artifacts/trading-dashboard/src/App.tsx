@@ -816,16 +816,20 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const requestInFlight = useRef(false);
+  const hasLoadedData = useRef(false);
   const { colors, setColors, reset } = useDailyColors();
   const [detail, setDetail] = useState<{ card: AssetCard; el: HTMLElement } | null>(null);
 
   const doFetch = useCallback(async (force = false) => {
-    if (force) setRefreshing(true); else setLoading(true);
-    setError(null);
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
+    if (force) setRefreshing(true);
+    else if (!hasLoadedData.current) setLoading(true);
     try {
       const url    = force ? "/api/emails/refresh" : "/api/emails/latest";
       const method = force ? "POST" : "GET";
-      const res    = await fetch(url, { method });
+      const res    = await fetch(url, { method, cache: "no-store" });
       const contentType = res.headers.get("content-type") ?? "";
       if (!contentType.toLowerCase().includes("json")) {
         throw new Error(`Daily Analysis API returned a non-JSON response (HTTP ${res.status}).`);
@@ -833,23 +837,28 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
       const json = await res.json() as Partial<EmailData> & { error?: string; message?: string };
       if (!res.ok) {
         setError(json.message ?? json.error ?? "Failed to fetch email");
-        setData(null);
+        if (!hasLoadedData.current) setData(null);
       } else {
         setData(json as EmailData);
+        hasLoadedData.current = true;
         setLastFetch(new Date());
+        setError(null);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
     } finally {
       setLoading(false);
       setRefreshing(false);
+      requestInFlight.current = false;
     }
   }, []);
 
   useEffect(() => {
     doFetch(false);
-    const t = setInterval(() => doFetch(false), 30 * 60 * 1000);
-    return () => clearInterval(t);
+    const t = window.setInterval(() => {
+      if (document.visibilityState === "visible") void doFetch(false);
+    }, 60 * 1000);
+    return () => window.clearInterval(t);
   }, [doFetch]);
 
   const fmtAge = (d: Date) => {
@@ -882,7 +891,12 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
 
         {lastFetch && !isBusy && (
           <span style={{ fontSize: 10, color: "hsl(var(--muted))", marginRight: 6 }}>
-            Updated {fmtAge(lastFetch)}
+            Checked {fmtAge(lastFetch)}
+          </span>
+        )}
+        {error && data && (
+          <span role="status" style={{ fontSize: 10, color: "#f59e0b", marginRight: 6 }}>
+            Showing the last report; refresh failed.
           </span>
         )}
 
@@ -907,7 +921,7 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
           </div>
         )}
 
-        {!loading && error && (
+        {!loading && error && !data && (
           <div className="daily-error">
             <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Could not load email</div>
@@ -920,7 +934,7 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
           </div>
         )}
 
-        {!loading && !error && data && data.cards.length === 0 && (
+        {!loading && data && data.cards.length === 0 && (
           <div className="daily-error">
             <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>No asset cards found</div>
@@ -930,7 +944,7 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
           </div>
         )}
 
-        {!loading && !error && data && data.cards.length > 0 && (
+        {!loading && data && data.cards.length > 0 && (
           <div className={`analysis-grid${refreshing ? " analysis-grid--refreshing" : ""}`} style={colorVars(colors)}>
             {data.cards.map((card, i) => (
               <DailyCard key={card.id} card={card} idx={i} onExpand={(c, el) => setDetail({ card: c, el })} />

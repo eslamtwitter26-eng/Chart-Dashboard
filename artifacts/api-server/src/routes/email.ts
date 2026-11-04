@@ -3,6 +3,7 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 import { simpleParser } from "mailparser";
 import { extractAnalysisField } from "../lib/email-fields";
 import { findFirstEmailWithCards } from "../lib/email-selection";
+import { logger } from "../lib/logger";
 import type { Response } from "express";
 
 const router = Router();
@@ -34,7 +35,10 @@ export interface ParsedEmail {
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
 let _cache: { data: ParsedEmail; fetchedAt: number } | null = null;
-const CACHE_TTL = 30 * 60 * 1000;
+let _refreshInFlight: Promise<ParsedEmail | null> | null = null;
+let _pollTimer: ReturnType<typeof setInterval> | null = null;
+const CACHE_TTL = 5 * 60 * 1000;
+const EMAIL_POLL_INTERVAL = 5 * 60 * 1000;
 
 class GmailConnectorError extends Error {
   readonly status: number;
@@ -270,9 +274,47 @@ async function getEmail(forceRefresh = false): Promise<ParsedEmail | null> {
   if (!forceRefresh && _cache && now - _cache.fetchedAt < CACHE_TTL) {
     return _cache.data;
   }
-  const data = await fetchAndParse();
-  if (data) _cache = { data, fetchedAt: now };
-  return data;
+  if (_refreshInFlight) return _refreshInFlight;
+
+  const refresh = fetchAndParse();
+  _refreshInFlight = refresh;
+  try {
+    const data = await refresh;
+    if (data) _cache = { data, fetchedAt: Date.now() };
+    return data;
+  } finally {
+    if (_refreshInFlight === refresh) _refreshInFlight = null;
+  }
+}
+
+async function pollLatestEmail(): Promise<void> {
+  try {
+    const previousReceivedAt = _cache?.data.receivedAt;
+    const data = await getEmail(true);
+    if (data && data.receivedAt !== previousReceivedAt) {
+      logger.info(
+        { cardCount: data.cards.length, receivedAt: data.receivedAt },
+        "Loaded latest Trading Central analysis",
+      );
+    }
+  } catch (err) {
+    logger.warn(
+      { error: err instanceof Error ? err.name : "UnknownError" },
+      "Background Trading Central email check failed",
+    );
+  }
+}
+
+export function startEmailPolling(): void {
+  if (_pollTimer) return;
+
+  _pollTimer = setInterval(() => {
+    void pollLatestEmail();
+  }, EMAIL_POLL_INTERVAL);
+  _pollTimer.unref?.();
+
+  logger.info({ intervalMs: EMAIL_POLL_INTERVAL }, "Started Trading Central email polling");
+  void pollLatestEmail();
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
