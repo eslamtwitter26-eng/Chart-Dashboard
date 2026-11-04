@@ -6,12 +6,12 @@ interface Preset { id: string; name: string; accent: string; bg: string; text: s
 
 // Empty strings = follow the app theme.
 export const PRESETS: Preset[] = [
-  { id: "default", name: "App theme", accent: "", bg: "", text: "" },
-  { id: "slate",   name: "Slate Blue", accent: "#5aa9ff", bg: "#141c2b", text: "#e3e9f4" },
-  { id: "graphite",name: "Graphite Amber", accent: "#e0a53a", bg: "#1b1a18", text: "#ece7dc" },
-  { id: "teal",    name: "Deep Teal", accent: "#3fc6b7", bg: "#0f2224", text: "#dcefed" },
-  { id: "paper",   name: "Paper", accent: "#2f5fb3", bg: "#f6f2e8", text: "#1f2430" },
-  { id: "mist",    name: "Mist Violet", accent: "#6d4fc4", bg: "#eceaf4", text: "#22202e" },
+  { id: "default", name: "ثيم التطبيق", accent: "", bg: "", text: "" },
+  { id: "slate",   name: "أزرق أردوازي", accent: "#5aa9ff", bg: "#141c2b", text: "#e3e9f4" },
+  { id: "graphite",name: "جرافيت وعنبر", accent: "#e0a53a", bg: "#1b1a18", text: "#ece7dc" },
+  { id: "teal",    name: "تركواز داكن", accent: "#3fc6b7", bg: "#0f2224", text: "#dcefed" },
+  { id: "paper",   name: "ورقي", accent: "#2f5fb3", bg: "#f6f2e8", text: "#1f2430" },
+  { id: "mist",    name: "بنفسجي ضبابي", accent: "#6d4fc4", bg: "#eceaf4", text: "#22202e" },
 ];
 const KEY = "tdash-daily-colors-v1";
 const DEFAULT: DailyColors = { preset: "default", accent: "", bg: "", text: "" };
@@ -74,12 +74,12 @@ export function ColorsPanel({ colors, setColors, reset }: {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button className="toolbar-icon-btn" data-testid="button-colors" aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen(o => !o)}>
-        <Palette size={14} /> Colors
+        <Palette size={14} /> الألوان
       </button>
       {open && (
-        <div className="dcp" role="dialog" aria-label="Card colors">
-          <div className="dcp-head"><b>Card colors</b>
-            <button className="dcp-x" aria-label="Close colors" onClick={() => setOpen(false)}><X size={14} /></button></div>
+        <div className="dcp" role="dialog" aria-label="ألوان البطاقات">
+          <div className="dcp-head"><b>ألوان البطاقات</b>
+            <button className="dcp-x" aria-label="إغلاق الألوان" onClick={() => setOpen(false)}><X size={14} /></button></div>
           <div className="dcp-presets">
             {PRESETS.map(p => (
               <button key={p.id} data-testid={`button-preset-${p.id}`} aria-pressed={colors.preset === p.id}
@@ -92,11 +92,11 @@ export function ColorsPanel({ colors, setColors, reset }: {
               </button>
             ))}
           </div>
-          <div className="dcp-sub">Custom</div>
-          {field("accent", "Accent")}{field("bg", "Card background")}{field("text", "Text")}
-          {warn && <div className="dcp-warn">Low contrast between background and text.</div>}
-          <div className="dcp-note">Bullish / bearish colors are not affected.</div>
-          <button className="mini-btn dcp-reset" data-testid="button-colors-reset" onClick={reset}><RotateCcw size={11} /> Reset to default</button>
+          <div className="dcp-sub">تخصيص</div>
+          {field("accent", "اللون المميز")}{field("bg", "خلفية البطاقة")}{field("text", "لون النص")}
+          {warn && <div className="dcp-warn">التباين بين الخلفية والنص منخفض.</div>}
+          <div className="dcp-note">ألوان الاتجاه الصاعد والهابط لا تتغير.</div>
+          <button className="mini-btn dcp-reset" data-testid="button-colors-reset" onClick={reset}><RotateCcw size={11} /> استعادة الافتراضي</button>
         </div>
       )}
     </div>

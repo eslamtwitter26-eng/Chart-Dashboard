@@ -23,6 +23,8 @@ import type {
   AccessEmailRequest,
   AccessStatus,
   BinanceKlinesResponse,
+  DailyAnalysisTranslation,
+  DailyAnalysisTranslationInput,
   GetBinanceKlinesParams,
   GetGoldHistoryParams,
   GetPaxgKlinesParams,
@@ -57,6 +59,94 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getTranslateDailyAnalysisUrl = () => {
+
+
+
+
+  return `/api/emails/translate`
+}
+
+/**
+ * @summary Translate a Trading Central report and generate a source-based explanation
+ */
+export const translateDailyAnalysis = async (dailyAnalysisTranslationInput: DailyAnalysisTranslationInput, options?: Parameters<typeof customFetch>[1]): Promise<DailyAnalysisTranslation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DailyAnalysisTranslation>(getTranslateDailyAnalysisUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dailyAnalysisTranslationInput)
+  }
+);}
+
+
+
+
+
+export const getTranslateDailyAnalysisMutationKey = () => ['translateDailyAnalysis'] as const;
+
+export const getTranslateDailyAnalysisMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof translateDailyAnalysis>>, TError,TranslateDailyAnalysisMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof translateDailyAnalysis>>, TError,TranslateDailyAnalysisMutationVariables, TContext> => {
+
+const mutationKey = getTranslateDailyAnalysisMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof translateDailyAnalysis>>, TranslateDailyAnalysisMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  translateDailyAnalysis(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TranslateDailyAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof translateDailyAnalysis>>>
+    export type TranslateDailyAnalysisMutationBody = BodyType<DailyAnalysisTranslationInput>
+    export type TranslateDailyAnalysisMutationError = ErrorType<void>
+    export type TranslateDailyAnalysisMutationVariables = {data: BodyType<DailyAnalysisTranslationInput>}
+
+    /**
+ * @summary Translate a Trading Central report and generate a source-based explanation
+ */
+export const useTranslateDailyAnalysis = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof translateDailyAnalysis>>, TError,TranslateDailyAnalysisMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof translateDailyAnalysis>>,
+        TError,
+        TranslateDailyAnalysisMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTranslateDailyAnalysisMutationOptions(options));
+    }
 
 export const getGetAccessStatusUrl = () => {
 

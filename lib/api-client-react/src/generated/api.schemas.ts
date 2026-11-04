@@ -5,6 +5,70 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type DailyAnalysisSourceCardDirection = typeof DailyAnalysisSourceCardDirection[keyof typeof DailyAnalysisSourceCardDirection];
+
+
+export const DailyAnalysisSourceCardDirection = {
+  bullish: 'bullish',
+  bearish: 'bearish',
+  neutral: 'neutral',
+} as const;
+
+export interface DailyAnalysisSourceCard {
+  /** @maxLength 128 */
+  id: string;
+  /** @maxLength 120 */
+  assetName: string;
+  /** @maxLength 80 */
+  timeframe: string;
+  /** @maxLength 300 */
+  pivot: string;
+  /** @maxLength 3000 */
+  watchText: string;
+  /** @maxLength 5000 */
+  preference: string;
+  /** @maxLength 5000 */
+  alternative: string;
+  /** @maxLength 8000 */
+  comment: string;
+  direction: DailyAnalysisSourceCardDirection;
+}
+
+export interface DailyAnalysisTranslationInput {
+  /** @maxLength 500 */
+  subject: string;
+  /** @maxLength 120 */
+  session: string;
+  /** @maxItems 20 */
+  cards: DailyAnalysisSourceCard[];
+}
+
+export interface DailyAnalysisTranslatedCard {
+  /** @maxLength 128 */
+  id: string;
+  /** @maxLength 3000 */
+  watchText: string;
+  /** @maxLength 5000 */
+  preference: string;
+  /** @maxLength 5000 */
+  alternative: string;
+  /** @maxLength 8000 */
+  comment: string;
+  /** @maxLength 1500 */
+  extraAnalysis: string;
+}
+
+export interface DailyAnalysisTranslation {
+  /** @maxLength 500 */
+  subject: string;
+  /** @maxLength 120 */
+  session: string;
+  /** @maxLength 2000 */
+  reportInsight: string;
+  /** @maxItems 20 */
+  cards: DailyAnalysisTranslatedCard[];
+}
+
 export interface AccessStatus {
   authorized: boolean;
 }
