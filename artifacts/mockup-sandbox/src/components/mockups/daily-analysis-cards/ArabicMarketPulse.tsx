@@ -213,7 +213,7 @@ export function ArabicMarketPulse() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<{ card: AssetCard; bias: Bias } | null>(null);
-  const [translationPreview, setTranslationPreview] = useState(true);
+  const translationPreview = false;
 
   const enriched = useMemo(
     () => report.cards.map((card) => ({ card, bias: resolveBias(card) })),
@@ -259,12 +259,6 @@ export function ArabicMarketPulse() {
         .amp-top-meta { display:flex; align-items:center; gap:9px; color:var(--ink-soft); font-size:12px; }
         .amp-live-dot { width:7px;height:7px;border-radius:50%;background:#1b9a72;box-shadow:0 0 0 4px #1b9a7217; }
         .amp-report-label { padding:6px 10px; border:1px solid var(--line); border-radius:7px; color:var(--ink); background:#ffffff80; font-size:11px; }
-        .amp-mode-control { display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--line);border-radius:9px;background:#e9eee8; }
-        .amp-mode-cluster { display:flex;align-items:center;gap:9px; }
-        .amp-mode-control button { border:0;border-radius:6px;background:transparent;padding:6px 9px;color:#78898a;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .18s,color .18s,box-shadow .18s; }
-        .amp-mode-control button[aria-pressed="true"] { background:var(--surface);color:#1b5144;box-shadow:0 1px 4px #24392e12; }
-        .amp-source-cue { display:flex;align-items:center;gap:5px;color:#72847e;font-size:9px;white-space:nowrap; }
-        .amp-source-cue svg { color:#168365; }
         .amp-hero { position:relative; padding:42px 0 28px; display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:28px; }
         .amp-hero:before { content:''; position:absolute; inset:18px auto auto -42px; width:190px;height:160px; pointer-events:none; opacity:.42; background:radial-gradient(ellipse at 30% 55%, #dbece0 0, #dbece000 70%); }
         .amp-eyebrow { display:flex;align-items:center;gap:9px;color:var(--mint);font-size:11px;font-weight:700;letter-spacing:.03em; }
@@ -388,10 +382,6 @@ export function ArabicMarketPulse() {
           .amp-shell{padding:0 17px 42px}.amp-topbar{height:59px}.amp-top-meta{font-size:10px}.amp-report-label{display:none}
           .amp-topbar { height:auto;min-height:60px;padding:8px 0;gap:9px;flex-wrap:wrap; }
           .amp-top-meta { margin-inline-start:auto; }
-          .amp-mode-control { order:3;width:100%;justify-content:space-between; }
-          .amp-mode-cluster { order:3;width:100%;justify-content:space-between; }
-          .amp-mode-control button { flex:1; }
-          .amp-source-cue { font-size:8px; }
           .amp-hero{grid-template-columns:1fr;padding:30px 0 20px;gap:10px}.amp-hero:before{left:-18px}.amp-hero h1{font-size:34px}.amp-hero p{font-size:12px}.amp-hero-date{text-align:right;display:flex;align-items:center;gap:8px;font-size:10px}.amp-hero-date strong{margin:0}
           .amp-overview{grid-template-columns:1fr;gap:10px;margin-bottom:25px}.amp-sentiment{padding:16px}.amp-sent-content{grid-template-columns:1fr 106px;gap:14px}.amp-summary-ring{width:96px;height:96px}.amp-summary-ring:before{inset:6px}.amp-ring-copy strong{font-size:21px}.amp-legend{gap:12px}.amp-legend button{font-size:10px}
           .amp-readout{min-height:0;padding:15px 16px}.amp-readout-number{margin:5px 0}.amp-readout-number strong{font-size:34px}.amp-readout-foot{margin-top:9px;padding-top:9px}
@@ -408,13 +398,6 @@ export function ArabicMarketPulse() {
           <div className="amp-brand">
             <span className="amp-brand-mark"><BarChart3 size={18} strokeWidth={2.2} /></span>
             <span className="amp-brand-name">EG-Finance FX<small>TRADING CENTRAL</small></span>
-          </div>
-          <div className="amp-mode-cluster">
-            <div className="amp-mode-control" role="group" aria-label="لغة نص التقرير">
-              <button type="button" aria-pressed={translationPreview} onClick={() => setTranslationPreview(true)}>معاينة عربية</button>
-              <button type="button" aria-pressed={!translationPreview} onClick={() => setTranslationPreview(false)}>النص الأصلي · English</button>
-            </div>
-            <span className="amp-source-cue"><Check size={12} /> {translationPreview ? "ترجمة معاينة · المصدر محفوظ" : "النص الأصلي محفوظ كما ورد"}</span>
           </div>
           <div className="amp-top-meta"><span className="amp-live-dot" /><span>قراءة تقرير السوق</span><span className="amp-report-label">تقارير التحليل الفني</span></div>
         </header>

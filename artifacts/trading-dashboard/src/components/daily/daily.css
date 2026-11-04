@@ -82,19 +82,7 @@
 
 .daily-analysis .toolbar{gap:8px}
 .daily-analysis .daily-header-meta{direction:rtl}
-.daily-translate-btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:30px;padding:6px 11px;
-  border:1px solid hsl(var(--primary)/.4);border-radius:8px;
-  background:linear-gradient(135deg,hsl(var(--primary)/.18),hsl(268 78% 58%/.13));
-  color:hsl(var(--text));font-size:10px;font-weight:750;white-space:nowrap;
-  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease;
-}
-.daily-translate-btn:hover:not(:disabled){transform:translateY(-1px);border-color:hsl(var(--primary));box-shadow:0 6px 20px hsl(var(--primary)/.16)}
-.daily-translate-btn.is-active{background:linear-gradient(135deg,hsl(var(--primary)/.22),hsl(268 78% 58%/.2));border-color:hsl(var(--primary)/.7)}
-.daily-translate-btn:focus-visible,.daily-filter:focus-visible,.daily-search input:focus-visible{outline:2px solid hsl(var(--primary));outline-offset:2px}
-.daily-translate-btn:disabled{opacity:.65;cursor:wait}
-.daily-translate-spinner{width:13px;height:13px;border:2px solid hsl(var(--primary)/.3);border-top-color:hsl(var(--primary));border-radius:50%;animation:dailyRotate .7s linear infinite}
-@keyframes dailyRotate{to{transform:rotate(360deg)}}
+.daily-filter:focus-visible,.daily-search input:focus-visible{outline:2px solid hsl(var(--primary));outline-offset:2px}
 
 .daily-main-scroll{height:100%;overflow-y:auto;overscroll-behavior:contain;padding-bottom:14px}
 .daily-main-scroll>.analysis-grid{height:auto;min-height:0;overflow:visible}
@@ -159,13 +147,11 @@
 }
 @media(max-width:640px){
   .daily-analysis>.toolbar>span{display:none}
-  .daily-translate-btn{min-height:30px;padding:6px 8px}
   .daily-pulse-heading p{font-size:9px}
   .daily-sentiment-counts{gap:10px}
 }
 @media(prefers-reduced-motion:reduce){
-  .daily-translate-btn,.daily-filter,.daily-sentiment-bar span{transition:none}
+  .daily-filter,.daily-sentiment-bar span{transition:none}
   .daily-pulse,.daily-report-insight{animation:none}
   .daily-pulse-icon{animation:none}
-  .daily-translate-spinner{animation-duration:1.8s}
 }
