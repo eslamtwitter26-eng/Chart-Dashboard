@@ -14,7 +14,33 @@ tags:
     description: Email allowlist access gate
   - name: gold
     description: Gold market data
+  - name: daily-analysis
+    description: Arabic translation and source-based explanation of Trading Central reports
 paths:
+  /emails/translate:
+    post:
+      operationId: translateDailyAnalysis
+      tags: [daily-analysis]
+      summary: Translate a Trading Central report and generate a source-based explanation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyAnalysisTranslationInput"
+      responses:
+        "200":
+          description: Arabic translation and additional report-based analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyAnalysisTranslation"
+        "400":
+          description: Invalid or oversized report
+        "502":
+          description: Translation provider failed or returned invalid output
+        "503":
+          description: AI translation is not configured
   /access/status:
     get:
       operationId: getAccessStatus
@@ -185,6 +211,52 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    DailyAnalysisSourceCard:
+      type: object
+      required: [id, assetName, timeframe, pivot, watchText, preference, alternative, comment, direction]
+      properties:
+        id: { type: string, maxLength: 128 }
+        assetName: { type: string, maxLength: 120 }
+        timeframe: { type: string, maxLength: 80 }
+        pivot: { type: string, maxLength: 300 }
+        watchText: { type: string, maxLength: 3000 }
+        preference: { type: string, maxLength: 5000 }
+        alternative: { type: string, maxLength: 5000 }
+        comment: { type: string, maxLength: 8000 }
+        direction: { type: string, enum: [bullish, bearish, neutral] }
+    DailyAnalysisTranslationInput:
+      type: object
+      required: [subject, session, cards]
+      properties:
+        subject: { type: string, maxLength: 500 }
+        session: { type: string, maxLength: 120 }
+        cards:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/DailyAnalysisSourceCard"
+    DailyAnalysisTranslatedCard:
+      type: object
+      required: [id, watchText, preference, alternative, comment, extraAnalysis]
+      properties:
+        id: { type: string, maxLength: 128 }
+        watchText: { type: string, maxLength: 3000 }
+        preference: { type: string, maxLength: 5000 }
+        alternative: { type: string, maxLength: 5000 }
+        comment: { type: string, maxLength: 8000 }
+        extraAnalysis: { type: string, maxLength: 1500 }
+    DailyAnalysisTranslation:
+      type: object
+      required: [subject, session, reportInsight, cards]
+      properties:
+        subject: { type: string, maxLength: 500 }
+        session: { type: string, maxLength: 120 }
+        reportInsight: { type: string, maxLength: 2000 }
+        cards:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/DailyAnalysisTranslatedCard"
     AccessStatus:
       type: object
       required: [authorized]

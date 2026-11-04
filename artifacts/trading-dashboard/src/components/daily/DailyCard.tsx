@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { Maximize2, ImageOff, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import type { AssetCard } from "./types";
+import { Maximize2, ImageOff, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
+import type { AssetCard, DailyTranslationCard } from "./types";
+import { reportDirection } from "./types";
 import "./daily.css";
 import "./analysis-redesign.css";
 
-export function Direction({ dir }: { dir: AssetCard["direction"] }) {
+export function Direction({ dir, arabic = false }: { dir: AssetCard["direction"]; arabic?: boolean }) {
   const Icon = dir === "bullish" ? TrendingUp : dir === "bearish" ? TrendingDown : Minus;
-  return <span className={`dc-dir dc-dir--${dir}`}><Icon size={11} />{dir.toUpperCase()}</span>;
+  const label = arabic
+    ? dir === "bullish" ? "صاعد" : dir === "bearish" ? "هابط" : "محايد"
+    : dir.toUpperCase();
+  return <span className={`dc-dir dc-dir--${dir}`}><Icon size={11} />{label}</span>;
 }
 
 export function Field({ label, value, tone }: { label: string; value?: string; tone?: string }) {
@@ -26,8 +30,8 @@ export function ChartBlock({ card, large }: { card: AssetCard; large?: boolean }
     return (
       <div className={`dc-chart dc-chart--empty${large ? " dc-chart--large" : ""}`}>
         <ImageOff size={22} />
-        <span>{card.chartUrl ? "Chart image failed to load" : "No chart in source email"}</span>
-        {card.chartUrl && <a href={card.chartUrl} target="_blank" rel="noreferrer">Open image link</a>}
+        <span>{card.chartUrl ? "تعذر تحميل صورة الشارت" : "لا توجد صورة في البريد الأصلي"}</span>
+        {card.chartUrl && <a href={card.chartUrl} target="_blank" rel="noreferrer">فتح رابط الصورة</a>}
       </div>
     );
   }
@@ -38,21 +42,34 @@ export function ChartBlock({ card, large }: { card: AssetCard; large?: boolean }
   );
 }
 
-export function DailyCard({ card, idx, onExpand }: { card: AssetCard; idx: number; onExpand: (c: AssetCard, el: HTMLElement) => void }) {
+export function DailyCard({
+  card, idx, onExpand, translation, arabic = true,
+}: {
+  card: AssetCard;
+  idx: number;
+  onExpand: (c: AssetCard, el: HTMLElement) => void;
+  translation?: DailyTranslationCard;
+  arabic?: boolean;
+}) {
+  const dir = reportDirection(card);
+  const translated = translation?.id === card.id;
+  const text = translated ? translation : card;
   return (
-    <article className={`et-card dc--${card.direction}`} data-testid={`card-analysis-${card.id}`}
+    <article className={`et-card dc--${dir}`} data-testid={`card-analysis-${card.id}`} dir={arabic ? "rtl" : "ltr"}
       style={{ animationDelay: `${idx * 45}ms` }}>
       <header className="et-card-header">
         <span className="et-index">{String(idx + 1).padStart(2, "0")}</span>
         <div className="et-identity">
-          <h2>{card.assetName}</h2>
-          <p>Intraday · {card.timeframe && card.timeframe !== "Not specified" ? card.timeframe : "Timeframe not specified"}</p>
+          <h2><bdi dir="ltr">{card.assetName}</bdi></h2>
+          <p>{arabic ? "تحليل خلال اليوم" : "Intraday"} · <bdi dir="ltr">
+            {card.timeframe && card.timeframe !== "Not specified" ? card.timeframe : arabic ? "غير محدد" : "Timeframe not specified"}
+          </bdi></p>
         </div>
-        <Direction dir={card.direction} />
+        <Direction dir={dir} arabic={arabic} />
         <button className="et-expand" data-testid={`button-expand-${card.id}`}
-          aria-label={`Expand full ${card.assetName} analysis`}
+          aria-label={arabic ? `عرض التحليل الكامل لـ ${card.assetName}` : `Expand full ${card.assetName} analysis`}
           onClick={e => onExpand(card, e.currentTarget)}>
-          Full analysis <Maximize2 size={12} />
+          {arabic ? "تفاصيل التحليل" : "Full analysis"} <Maximize2 size={12} />
         </button>
       </header>
 
@@ -61,43 +78,50 @@ export function DailyCard({ card, idx, onExpand }: { card: AssetCard; idx: numbe
       <div className="et-levels">
         {card.pivot && (
           <div className="et-level">
-            <span className="et-level-label">Pivot · key level</span>
-            <strong>{card.pivot}</strong>
+            <span className="et-level-label">{arabic ? "نقطة الارتكاز · مستوى رئيسي" : "Pivot · key level"}</span>
+            <strong dir="auto">{card.pivot}</strong>
           </div>
         )}
-        {card.watchText && (
+        {text.watchText && (
           <div className="et-watch">
-            <span className="et-level-label">Watch from report</span>
-            <p>{card.watchText}</p>
+            <span className="et-level-label">{arabic ? "ما الذي نراقبه؟" : "Watch from report"}</span>
+            <p dir={translated ? "rtl" : "auto"}>{text.watchText}</p>
           </div>
         )}
       </div>
 
       <div className="et-scenarios">
-        {card.preference && (
+        {text.preference && (
           <section className="et-scenario">
-            <span className="et-section-label">Our preference</span>
-            <p>{card.preference}</p>
+            <span className="et-section-label">{arabic ? "السيناريو المفضل في التقرير" : "Our preference"}</span>
+            <p dir={translated ? "rtl" : "auto"}>{text.preference}</p>
           </section>
         )}
-        {card.alternative && (
+        {text.alternative && (
           <section className="et-scenario et-scenario--alternative">
-            <span className="et-section-label">Alternative scenario</span>
-            <p>{card.alternative}</p>
+            <span className="et-section-label">{arabic ? "السيناريو البديل" : "Alternative scenario"}</span>
+            <p dir={translated ? "rtl" : "auto"}>{text.alternative}</p>
           </section>
         )}
       </div>
 
-      {card.comment && (
+      {text.comment && (
         <section className="et-comment">
-          <span className="et-section-label">Trading Central commentary</span>
-          <p>{card.comment}</p>
+          <span className="et-section-label">{arabic ? "تعليق Trading Central" : "Trading Central commentary"}</span>
+          <p dir={translated ? "rtl" : "auto"}>{text.comment}</p>
+        </section>
+      )}
+
+      {translated && translation?.extraAnalysis && (
+        <section className="et-ai-insight">
+          <span className="et-section-label"><Sparkles size={12} /> قراءة إضافية مبنية على التقرير</span>
+          <p>{translation.extraAnalysis}</p>
         </section>
       )}
 
       <footer className="et-card-footer">
-        <span className="et-source-label"><i className="et-source-mark" />Trading Central</span>
-        <span>{card.timeframe || "Report analysis"}</span>
+        <span className="et-source-label"><i className="et-source-mark" />Trading Central · {arabic ? "المصدر الأصلي" : "source"}</span>
+        <span dir="ltr">{card.timeframe || (arabic ? "تحليل التقرير" : "Report analysis")}</span>
       </footer>
     </article>
   );

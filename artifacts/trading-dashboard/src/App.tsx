@@ -9,8 +9,9 @@ import { UploadedGoldLab as GoldLab } from "./components/gold/UploadedGoldLab";
 import { DailyCard } from "./components/daily/DailyCard";
 import { DailyDetail } from "./components/daily/DailyDetail";
 import { ColorsPanel, useDailyColors, colorVars } from "./components/daily/colors";
-import type { AssetCard, EmailData } from "./components/daily/types";
+import { reportDirection, type AssetCard, type DailyAnalysisTranslation, type EmailData } from "./components/daily/types";
 import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext } from "react";
+import { Languages, Minus, RefreshCw, Search, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 
 // ─── Theme context ─────────────────────────────────────────────────────────────
 
@@ -816,10 +817,32 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [translation, setTranslation] = useState<DailyAnalysisTranslation | null>(null);
+  const [showArabic, setShowArabic] = useState(false);
+  const [translationLoading, setTranslationLoading] = useState(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filter, setFilter] = useState<"all" | "bullish" | "bearish" | "neutral">("all");
   const requestInFlight = useRef(false);
+  const translationInFlight = useRef(false);
   const hasLoadedData = useRef(false);
   const { colors, setColors, reset } = useDailyColors();
   const [detail, setDetail] = useState<{ card: AssetCard; el: HTMLElement } | null>(null);
+
+  const sourceKey = useMemo(() => data ? JSON.stringify([
+    data.subject, data.session, data.receivedAt,
+    data.cards.map(({ id, assetName, timeframe, pivot, watchText, preference, alternative, comment }) =>
+      [id, assetName, timeframe, pivot, watchText, preference, alternative, comment]),
+  ]) : "", [data]);
+
+  useEffect(() => {
+    setTranslation(null);
+    setShowArabic(false);
+    setTranslationError(null);
+    setFilter("all");
+    setSearchTerm("");
+    setDetail(null);
+  }, [sourceKey]);
 
   const doFetch = useCallback(async (force = false) => {
     if (requestInFlight.current) return;
@@ -863,26 +886,107 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
 
   const fmtAge = (d: Date) => {
     const secs = Math.round((Date.now() - d.getTime()) / 1000);
-    if (secs < 60)  return "just now";
-    if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
-    return `${Math.floor(secs / 3600)}h ago`;
+    if (secs < 60) return "الآن";
+    if (secs < 3600) return `منذ ${Math.floor(secs / 60)} د`;
+    return `منذ ${Math.floor(secs / 3600)} س`;
+  };
+
+  const sentiment = useMemo(() => {
+    const counts = { bullish: 0, bearish: 0, neutral: 0 };
+    for (const card of data?.cards ?? []) counts[reportDirection(card)] += 1;
+    return counts;
+  }, [data]);
+  const total = data?.cards.length ?? 0;
+  const reportDate = data?.receivedAt && !Number.isNaN(Date.parse(data.receivedAt))
+    ? new Date(data.receivedAt).toLocaleDateString("ar-EG", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    })
+    : data?.date ?? "";
+  const filteredCards = (data?.cards ?? []).filter((card) => {
+    const matchesSentiment = filter === "all" || reportDirection(card) === filter;
+    const query = searchTerm.trim().toLowerCase();
+    const matchesSearch = !query || `${card.assetName} ${card.timeframe}`.toLowerCase().includes(query);
+    return matchesSentiment && matchesSearch;
+  });
+
+  const translateReport = useCallback(async () => {
+    if (!data || translationInFlight.current) return;
+    translationInFlight.current = true;
+    setTranslationLoading(true);
+    setTranslationError(null);
+    try {
+      const payload = {
+        subject: data.subject,
+        session: data.session,
+        cards: data.cards.map(card => ({
+          id: card.id,
+          assetName: card.assetName,
+          timeframe: card.timeframe,
+          pivot: card.pivot,
+          watchText: card.watchText,
+          preference: card.preference,
+          alternative: card.alternative,
+          comment: card.comment,
+          direction: reportDirection(card),
+        })),
+      };
+      const response = await fetch("/api/emails/translate", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.toLowerCase().includes("json")) {
+        throw new Error(`استجابة الترجمة غير صالحة (HTTP ${response.status}).`);
+      }
+      const json = await response.json() as DailyAnalysisTranslation & { error?: string; message?: string };
+      if (!response.ok) throw new Error(json.message ?? json.error ?? "تعذرت ترجمة التقرير.");
+      const expectedIds = payload.cards.map(card => card.id);
+      if (
+        !Array.isArray(json.cards) ||
+        json.cards.length !== expectedIds.length ||
+        json.cards.some((card, index) => card.id !== expectedIds[index])
+      ) {
+        throw new Error("لم تتطابق الترجمة مع بطاقات التقرير الأصلي.");
+      }
+      setTranslation(json);
+      setShowArabic(true);
+    } catch (e) {
+      setTranslationError(e instanceof Error ? e.message : "تعذرت ترجمة التقرير.");
+      setShowArabic(false);
+    } finally {
+      setTranslationLoading(false);
+      translationInFlight.current = false;
+    }
+  }, [data]);
+
+  const toggleTranslation = () => {
+    if (showArabic) {
+      setShowArabic(false);
+    } else if (translation) {
+      setShowArabic(true);
+      setTranslationError(null);
+    } else {
+      void translateReport();
+    }
   };
 
   const isBusy = loading || refreshing;
 
   return (
-    <div className="daily-analysis" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="daily-analysis" dir="rtl" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Toolbar */}
       <div className="toolbar">
-        <div className="logo">DAILY ANALYSIS</div>
+        <div className="logo">التحليل اليومي</div>
         <div className="toolbar-sep" />
 
         {data && (
           <div className="daily-header-meta">
-            <span className="daily-session-badge">{data.session}</span>
-            <span className="daily-date-text">{data.date}</span>
+            <span className="daily-session-badge">{showArabic && translation ? translation.session : data.session}</span>
+            <span className="daily-date-text">{reportDate}</span>
             {data.cards.length > 0 && (
-              <span className="daily-count-pill">{data.cards.length} assets</span>
+              <span className="daily-count-pill">{data.cards.length} أصول</span>
             )}
           </div>
         )}
@@ -891,45 +995,67 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
 
         {lastFetch && !isBusy && (
           <span style={{ fontSize: 10, color: "hsl(var(--muted))", marginRight: 6 }}>
-            Checked {fmtAge(lastFetch)}
+            تم الفحص {fmtAge(lastFetch)}
           </span>
         )}
         {error && data && (
           <span role="status" style={{ fontSize: 10, color: "#f59e0b", marginRight: 6 }}>
-            Showing the last report; refresh failed.
+            نعرض التقرير السابق؛ تعذر التحديث.
           </span>
         )}
 
+        {data && data.cards.length > 0 && (
+          <button
+            className={`daily-translate-btn${showArabic ? " is-active" : ""}`}
+            data-testid="button-translate-daily-analysis"
+            onClick={toggleTranslation}
+            disabled={isBusy || translationLoading}
+            aria-pressed={showArabic}
+            aria-busy={translationLoading}
+            title="تُستخدم أرصدة الذكاء الاصطناعي عند الضغط؛ لا تُرسل الصور ولا يتغير المصدر الأصلي"
+          >
+            {translationLoading
+              ? <span className="daily-translate-spinner" aria-hidden="true" />
+              : <Languages size={14} />}
+            {translationLoading
+              ? "جارٍ الترجمة…"
+              : showArabic
+                ? "عرض النص الأصلي"
+                : translation
+                  ? "عرض الترجمة العربية"
+                  : "ترجمة التقرير للعربية"}
+          </button>
+        )}
         <ColorsPanel colors={colors} setColors={setColors} reset={reset} />
         <button
           className={`toolbar-icon-btn${refreshing ? " toolbar-icon-btn--spin" : ""}`}
           onClick={() => doFetch(true)}
           disabled={isBusy}
-          title="Force refresh from Gmail"
+          title="تحديث التقرير من Gmail"
         >
-          <span className={refreshing ? "spin-icon" : ""}>🔄</span>
-          {refreshing ? "Fetching…" : "Refresh"}
+          <RefreshCw size={13} className={refreshing ? "spin-icon" : ""} />
+          {refreshing ? "جارٍ التحديث…" : "تحديث"}
         </button>
       </div>
 
       {/* Content area */}
-      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
+      <div className="daily-content" style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
         {loading && (
           <div className="daily-loading">
             <div className="daily-spinner" />
-            <div>Fetching latest Trading Central analysis…</div>
+            <div>جارٍ تحميل أحدث تحليل من Trading Central…</div>
           </div>
         )}
 
         {!loading && error && !data && (
           <div className="daily-error">
             <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Could not load email</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>تعذر تحميل البريد</div>
             <div style={{ fontSize: 12, color: "hsl(var(--muted))", maxWidth: 480, textAlign: "center", lineHeight: 1.6 }}>
               {error}
             </div>
             <button className="toolbar-icon-btn" style={{ marginTop: 16 }} onClick={() => doFetch(true)}>
-              🔄 Try again
+              إعادة المحاولة
             </button>
           </div>
         )}
@@ -937,23 +1063,115 @@ function DailyAnalysisMode({ theme: _theme }: { theme: "dark" | "light" }) {
         {!loading && data && data.cards.length === 0 && (
           <div className="daily-error">
             <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>No asset cards found</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>لم يتم العثور على بطاقات للأصول</div>
             <div style={{ fontSize: 12, color: "hsl(var(--muted))", marginTop: 6 }}>
-              The email was fetched but no structured asset sections were detected.
+              تم جلب البريد، لكن لم يتم اكتشاف أقسام تحليل منظمة.
             </div>
           </div>
         )}
 
         {!loading && data && data.cards.length > 0 && (
-          <div className={`analysis-grid${refreshing ? " analysis-grid--refreshing" : ""}`} style={colorVars(colors)}>
-            {data.cards.map((card, i) => (
-              <DailyCard key={card.id} card={card} idx={i} onExpand={(c, el) => setDetail({ card: c, el })} />
-            ))}
+          <div className="daily-main-scroll">
+            <section className="daily-pulse" aria-label="ملخص معنويات التوصيات">
+              <div className="daily-pulse-heading">
+                <div className="daily-pulse-icon"><Sparkles size={17} /></div>
+                <div>
+                  <span className="daily-eyebrow">نبض التقرير اليومي</span>
+                  <h2>معنويات التوصيات</h2>
+                  <p>قراءة لإشارات Trading Central في هذا البريد، وليست قياسًا مباشرًا للسوق.</p>
+                </div>
+              </div>
+              <div className="daily-pulse-data">
+                <div className="daily-sentiment-bar" role="img" aria-label={`صاعد ${sentiment.bullish}، هابط ${sentiment.bearish}، محايد ${sentiment.neutral}`}>
+                  {sentiment.bullish > 0 && <span className="sentiment-up" style={{ width: `${sentiment.bullish / total * 100}%` }} />}
+                  {sentiment.neutral > 0 && <span className="sentiment-flat" style={{ width: `${sentiment.neutral / total * 100}%` }} />}
+                  {sentiment.bearish > 0 && <span className="sentiment-down" style={{ width: `${sentiment.bearish / total * 100}%` }} />}
+                </div>
+                <div className="daily-sentiment-counts">
+                  <span className="sentiment-count-up"><TrendingUp size={13} /> صاعد <b>{sentiment.bullish}</b></span>
+                  <span className="sentiment-count-flat"><Minus size={13} /> محايد <b>{sentiment.neutral}</b></span>
+                  <span className="sentiment-count-down"><TrendingDown size={13} /> هابط <b>{sentiment.bearish}</b></span>
+                  <span className="daily-total">{total} أصول</span>
+                </div>
+              </div>
+            </section>
+
+            {showArabic && translation?.reportInsight && (
+              <section className="daily-report-insight" aria-label="قراءة إضافية للتقرير">
+                <div className="daily-insight-title"><Sparkles size={15} /> قراءة إضافية للتقرير</div>
+                <p>{translation.reportInsight}</p>
+                <small>مبنية على نص البريد فقط؛ لا تستخدم أسعارًا مباشرة ولا تغيّر توصيات المصدر.</small>
+              </section>
+            )}
+
+            {translationError && (
+              <div className="daily-translation-error" role="alert">
+                <span>{translationError}</span>
+                <button onClick={() => void translateReport()} disabled={translationLoading}>إعادة المحاولة</button>
+              </div>
+            )}
+
+            <div className="daily-controls">
+              <div className="daily-filters" role="group" aria-label="تصفية الأصول حسب اتجاه التقرير">
+                {([
+                  ["all", "الكل", total],
+                  ["bullish", "صاعد", sentiment.bullish],
+                  ["neutral", "محايد", sentiment.neutral],
+                  ["bearish", "هابط", sentiment.bearish],
+                ] as const).map(([value, label, count]) => (
+                  <button
+                    key={value}
+                    className={`daily-filter${filter === value ? " is-active" : ""}`}
+                    aria-pressed={filter === value}
+                    onClick={() => setFilter(value)}
+                  >
+                    {label}<span>{count}</span>
+                  </button>
+                ))}
+              </div>
+              <label className="daily-search">
+                <Search size={14} />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={event => setSearchTerm(event.target.value)}
+                  placeholder="ابحث عن أصل أو إطار زمني"
+                  aria-label="ابحث عن أصل أو إطار زمني"
+                />
+              </label>
+            </div>
+
+            {filteredCards.length ? (
+              <div className={`analysis-grid${refreshing ? " analysis-grid--refreshing" : ""}`} style={colorVars(colors)}>
+                {filteredCards.map((card, i) => (
+                  <DailyCard
+                    key={card.id}
+                    card={card}
+                    idx={i}
+                    translation={showArabic ? translation?.cards.find(item => item.id === card.id) : undefined}
+                    arabic
+                    onExpand={(c, el) => setDetail({ card: c, el })}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="daily-no-results">لا توجد أصول تطابق البحث أو التصفية الحالية.</div>
+            )}
           </div>
         )}
       </div>
       {detail && data && (
-        <DailyDetail card={detail.card} meta={data} style={colorVars(colors)} returnTo={detail.el} onClose={() => setDetail(null)} />
+        <DailyDetail
+          card={detail.card}
+          meta={{ ...data, date: reportDate }}
+          style={colorVars(colors)}
+          returnTo={detail.el}
+          onClose={() => setDetail(null)}
+          translation={showArabic ? translation?.cards.find(item => item.id === detail.card.id) : undefined}
+          translatedSession={showArabic ? translation?.session : undefined}
+          translatedSubject={showArabic ? translation?.subject : undefined}
+          arabic
+        />
       )}
     </div>
   );
@@ -1027,7 +1245,7 @@ export default function App() {
         <div className="mode-strip">
           <button className={`mode-tab ${mode === "standard" ? "active" : ""}`} onClick={() => switchMode("standard")}>Standard</button>
           <button className={`mode-tab ${mode === "custom" ? "active" : ""}`} onClick={() => switchMode("custom")}>⚙ Custom</button>
-          <button className={`mode-tab ${mode === "daily" ? "active" : ""}`} onClick={() => switchMode("daily")}>📰 Daily Analysis</button>
+          <button className={`mode-tab ${mode === "daily" ? "active" : ""}`} onClick={() => switchMode("daily")}>📰 التحليل اليومي</button>
           <button className={`mode-tab ${mode === "gold" ? "active" : ""}`} data-testid="tab-gold-lab" onClick={() => switchMode("gold")}>Gold Lab</button>
         </div>
 

@@ -9,6 +9,86 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Translate a Trading Central report and generate a source-based explanation
+ */
+export const translateDailyAnalysisBodySubjectMax = 500;
+
+export const translateDailyAnalysisBodySessionMax = 120;
+
+export const translateDailyAnalysisBodyCardsItemIdMax = 128;
+
+export const translateDailyAnalysisBodyCardsItemAssetNameMax = 120;
+
+export const translateDailyAnalysisBodyCardsItemTimeframeMax = 80;
+
+export const translateDailyAnalysisBodyCardsItemPivotMax = 300;
+
+export const translateDailyAnalysisBodyCardsItemWatchTextMax = 3000;
+
+export const translateDailyAnalysisBodyCardsItemPreferenceMax = 5000;
+
+export const translateDailyAnalysisBodyCardsItemAlternativeMax = 5000;
+
+export const translateDailyAnalysisBodyCardsItemCommentMax = 8000;
+
+export const translateDailyAnalysisBodyCardsMax = 20;
+
+
+
+export const TranslateDailyAnalysisBody = zod.object({
+  "subject": zod.string().max(translateDailyAnalysisBodySubjectMax),
+  "session": zod.string().max(translateDailyAnalysisBodySessionMax),
+  "cards": zod.array(zod.object({
+  "id": zod.string().max(translateDailyAnalysisBodyCardsItemIdMax),
+  "assetName": zod.string().max(translateDailyAnalysisBodyCardsItemAssetNameMax),
+  "timeframe": zod.string().max(translateDailyAnalysisBodyCardsItemTimeframeMax),
+  "pivot": zod.string().max(translateDailyAnalysisBodyCardsItemPivotMax),
+  "watchText": zod.string().max(translateDailyAnalysisBodyCardsItemWatchTextMax),
+  "preference": zod.string().max(translateDailyAnalysisBodyCardsItemPreferenceMax),
+  "alternative": zod.string().max(translateDailyAnalysisBodyCardsItemAlternativeMax),
+  "comment": zod.string().max(translateDailyAnalysisBodyCardsItemCommentMax),
+  "direction": zod.enum(['bullish', 'bearish', 'neutral'])
+})).max(translateDailyAnalysisBodyCardsMax)
+})
+
+export const translateDailyAnalysisResponseSubjectMax = 500;
+
+export const translateDailyAnalysisResponseSessionMax = 120;
+
+export const translateDailyAnalysisResponseReportInsightMax = 2000;
+
+export const translateDailyAnalysisResponseCardsItemIdMax = 128;
+
+export const translateDailyAnalysisResponseCardsItemWatchTextMax = 3000;
+
+export const translateDailyAnalysisResponseCardsItemPreferenceMax = 5000;
+
+export const translateDailyAnalysisResponseCardsItemAlternativeMax = 5000;
+
+export const translateDailyAnalysisResponseCardsItemCommentMax = 8000;
+
+export const translateDailyAnalysisResponseCardsItemExtraAnalysisMax = 1500;
+
+export const translateDailyAnalysisResponseCardsMax = 20;
+
+
+
+export const TranslateDailyAnalysisResponse = zod.object({
+  "subject": zod.string().max(translateDailyAnalysisResponseSubjectMax),
+  "session": zod.string().max(translateDailyAnalysisResponseSessionMax),
+  "reportInsight": zod.string().max(translateDailyAnalysisResponseReportInsightMax),
+  "cards": zod.array(zod.object({
+  "id": zod.string().max(translateDailyAnalysisResponseCardsItemIdMax),
+  "watchText": zod.string().max(translateDailyAnalysisResponseCardsItemWatchTextMax),
+  "preference": zod.string().max(translateDailyAnalysisResponseCardsItemPreferenceMax),
+  "alternative": zod.string().max(translateDailyAnalysisResponseCardsItemAlternativeMax),
+  "comment": zod.string().max(translateDailyAnalysisResponseCardsItemCommentMax),
+  "extraAnalysis": zod.string().max(translateDailyAnalysisResponseCardsItemExtraAnalysisMax)
+})).max(translateDailyAnalysisResponseCardsMax)
+})
+
+
+/**
  * @summary Check whether the browser has an active allowlisted access session
  */
 export const GetAccessStatusResponse = zod.object({
